@@ -287,6 +287,7 @@ static int global_ini_callback(const char *section, const char *name, const char
 	}
 
 	if (check_ini_section("CustomGameplay")) {
+		process_boolean("enable_cheats", &cheats_enabled);
 		process_boolean("use_custom_options", &use_custom_options);
 		process_word("start_minutes_left", &custom_saved.start_minutes_left, NULL);
 		process_word("start_ticks_left", &custom_saved.start_ticks_left, NULL);

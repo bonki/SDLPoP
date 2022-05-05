@@ -103,7 +103,7 @@ void far pop_main() {
 	current_target_surface = rect_sthg(onscreen_surface_, &screen_rect);
 	show_loading();
 	set_joy_mode();
-	cheats_enabled = check_param("megahit") != NULL;
+	cheats_enabled |= check_param("megahit") != NULL;
 #ifdef USE_DEBUG_CHEATS
 	debug_cheats_enabled = check_param("debug") != NULL;
 	if (debug_cheats_enabled) cheats_enabled = 1; // param 'megahit' not necessary if 'debug' is used

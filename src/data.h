@@ -896,7 +896,7 @@ extern full_image_type full_image[MAX_FULL_IMAGES] INIT(= {
 });
 
 // data:009C
-extern word cheats_enabled INIT(= 0);
+extern byte cheats_enabled INIT(= 0);
 #ifdef USE_DEBUG_CHEATS
 extern byte debug_cheats_enabled INIT(= 0);
 extern byte is_timer_displayed INIT(= 0);
