@@ -39,13 +39,13 @@ The authors of this program may be contacted at https://forum.princed.org
 
 // Enable or disable fading.
 // Fading used to be very buggy, but now it works correctly.
-#define USE_FADE
+#define USE_FADE 1
 
 // Enable or disable the potions level. (copy protection)
-#define USE_COPYPROT
+#define USE_COPYPROT 1
 
 // Enable or disable flashing.
-#define USE_FLASH
+#define USE_FLASH 1
 
 //#define USE_ALPHA
 
@@ -58,17 +58,17 @@ The authors of this program may be contacted at https://forum.princed.org
 //#define USE_COMPAT_TIMER
 
 // Enable quicksave/load feature.
-#define USE_QUICKSAVE
+#define USE_QUICKSAVE 1
 
 // Try to let time keep running out when quickloading. (similar to Ctrl+A)
 // Technically, the 'remaining time' is still restored, but with a penalty for elapsed time (up to 1 minute).
 // The one minute penalty will also be applied when quickloading from e.g. the title screen.
 #define USE_QUICKLOAD_PENALTY
 
-#ifdef USE_QUICKSAVE // Replay relies on quicksave, because the replay file begins with a quicksave of the initial state.
+#if USE_QUICKSAVE // Replay relies on quicksave, because the replay file begins with a quicksave of the initial state.
 
 // Enable recording/replay feature.
-#define USE_REPLAY
+#define USE_REPLAY 1
 
 #endif
 
@@ -313,7 +313,7 @@ The authors of this program may be contacted at https://forum.princed.org
 
 
 // Darken those parts of the screen which are not near a torch.
-#define USE_LIGHTING
+#define USE_LIGHTING 1
 
 // Enable screenshot features.
 #define USE_SCREENSHOT

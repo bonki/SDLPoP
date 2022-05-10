@@ -74,7 +74,7 @@ void __pascal far show_copyprot(int where);
 void __pascal far show_loading(void);
 void __pascal far show_quotes(void);
 void show_splash(void);
-#ifdef USE_QUICKSAVE
+#if USE_QUICKSAVE
 void check_quick_op(void);
 void restore_room_after_quick_load(void);
 #endif // USE_QUICKSAVE
@@ -686,7 +686,7 @@ void key_press_while_replaying(int* key_ptr);
 #endif
 
 // lighting.c
-#ifdef USE_LIGHTING
+#if USE_LIGHTING
 void init_lighting(void);
 void redraw_lighting(void);
 void update_lighting(const rect_type far *source_rect_ptr);

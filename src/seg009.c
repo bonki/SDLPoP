@@ -275,7 +275,7 @@ int __pascal far key_test_quit() {
 	key = read_key();
 	if (key == (SDL_SCANCODE_Q | WITH_CTRL)) { // Ctrl+Q
 
-		#ifdef USE_REPLAY
+		#if USE_REPLAY
 		if (recording) save_recorded_replay_dialog();
 		#endif
 		#ifdef USE_MENU
@@ -2316,7 +2316,7 @@ void free_sound(sound_buffer_type far *buffer) {
 // seg009:7220
 void __pascal far play_sound_from_buffer(sound_buffer_type far *buffer) {
 
-#ifdef USE_REPLAY
+#if USE_REPLAY
 	if (replaying && skipping_replay) return;
 #endif
 
@@ -2473,7 +2473,7 @@ void __pascal far set_gr_mode(byte grmode) {
 	}
 #endif
 
-#ifdef USE_REPLAY
+#if USE_REPLAY
 	if (!is_validate_mode) // run without a window if validating a replay
 #endif
 	window_ = SDL_CreateWindow(WINDOW_TITLE,
@@ -2588,7 +2588,7 @@ void draw_overlay(void) {
 			draw_rect_with_alpha(&timer_box_rect, color_0_black, 128);
 			show_text(&timer_text_rect, -1, -1, timer_text);
 
-#ifdef USE_REPLAY
+#if USE_REPLAY
 			// During playback, display the number of ticks since start, if the timer is shown (debug cheats: T).
 			if (replaying) {
 				char ticks_text[12];
@@ -3251,7 +3251,7 @@ void set_timer_length(int timer_index, int length) {
 }
 
 void __pascal start_timer(int timer_index, int length) {
-#ifdef USE_REPLAY
+#if USE_REPLAY
 	if (replaying && skipping_replay) return;
 #endif
 #ifndef USE_COMPAT_TIMER
@@ -3616,7 +3616,7 @@ void idle() {
 }
 
 void __pascal do_simple_wait(int timer_index) {
-#ifdef USE_REPLAY
+#if USE_REPLAY
 	if ((replaying && skipping_replay) || is_validate_mode) return;
 #endif
 	update_screen();
@@ -3628,7 +3628,7 @@ void __pascal do_simple_wait(int timer_index) {
 
 word word_1D63A = 1;
 int __pascal do_wait(int timer_index) {
-#ifdef USE_REPLAY
+#if USE_REPLAY
 	if ((replaying && skipping_replay) || is_validate_mode) return 0;
 #endif
 	update_screen();
@@ -3681,7 +3681,7 @@ void __pascal far reset_clip_rect() {
 // seg009:1983
 void __pascal far set_bg_attr(int vga_pal_index,int hc_pal_index) {
 	// stub
-#ifdef USE_FLASH
+#if USE_FLASH
 	//palette[vga_pal_index] = vga_palette[hc_pal_index];
 	if (!enable_flash) return;
 	if (vga_pal_index == 0) {
@@ -3716,7 +3716,7 @@ void __pascal far set_bg_attr(int vga_pal_index,int hc_pal_index) {
 			sdlperror("set_bg_attr: SDL_BlitSurface");
 			quit(1);
 		}
-#ifdef USE_LIGHTING
+#if USE_LIGHTING
 		if (hc_pal_index == 0) update_lighting(&rect_top);
 #endif
 		if (upside_down) {
@@ -4063,7 +4063,7 @@ int has_timer_stopped(int timer_index) {
 #ifdef USE_COMPAT_TIMER
 	return wait_time[timer_index] == 0;
 #else
-#ifdef USE_REPLAY
+#if USE_REPLAY
 	if ((replaying && skipping_replay) || is_validate_mode) return true;
 #endif
 	Uint64 current_counter = SDL_GetPerformanceCounter();

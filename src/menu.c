@@ -62,35 +62,439 @@ struct pause_menu_item_type {
 	char text[MAX_MENU_ITEM_LENGTH];
 };
 
+int integer_scaling_possible =
+#if SDL_VERSION_ATLEAST(2,0,5) // SDL_RenderSetIntegerScale
+	1
+#else
+	0
+#endif
+;
+
+#define IF(condition, ...)  IF2(condition, __VA_ARGS__)
+#define IF2(condition, ...) IF_##condition(__VA_ARGS__)
+#define IF_0(...)
+#define IF_1(...) __VA_ARGS__
+#define NOMAP
+#define ENABLED
+
+#define PAUSE_MENU_ITEMS(_) \
+	_(RESUME, "RESUME")        \
+/*
+  TODO: Add a cheats menu, where you can choose a cheat from a list?
+	_(CHEATS,        "CHEATS")        \
+*/ \
+IF(USE_QUICKSAVE, \
+	_(SAVE_GAME,     "QUICKSAVE")     \
+	_(LOAD_GAME,     "QUICKLOAD")     \
+) \
+	_(RESTART_LEVEL, "RESTART LEVEL") \
+	_(SETTINGS,      "SETTINGS")      \
+	_(RESTART_GAME,  "RESTART GAME")  \
+	_(QUIT_GAME,     "QUIT GAME")
+
+#define SETTINGS_MENU_ITEMS(_) \
+	_(GENERAL,       "GENERAL")       \
+	_(GAMEPLAY,      "GAMEPLAY")      \
+	_(VISUALS,       "VISUALS")       \
+	_(MODS,          "MODS")          \
+	_(LEVEL_CUSTOMIZATION, "LEVEL CUSTOMIZATION") \
+	_(BACK,          "BACK")
+
+//        id, style, type[(num,min,max,names_list)], linked, required, text, explanation
+#define GENERAL_SETTINGS(_) \
+	_(SHOW_MENU_ON_PAUSE, TOGGLE(&enable_pause_menu), ENABLED, \
+		"Enable pause menu", "Show the in-game menu when you pause the game.\n" \
+		                     "If disabled, you can still bring up the menu by pressing Backspace.") \
+	_(ENABLE_INFO_SCREEN, TOGGLE(&enable_info_screen), ENABLED, \
+		"Display info screen on launch", "Display the SDLPoP information screen when the game starts.") \
+	_(ENABLE_SOUND, TOGGLE(&is_sound_on), ENABLED, \
+		"Enable sound", "Turn sound on or off." ) \
+	_(ENABLE_MUSIC, TOGGLE(&enable_music), ENABLED, \
+		"Enable music", "Turn music on or off." ) \
+	_(ENABLE_CONTROLLER_RUMBLE, TOGGLE(&enable_controller_rumble), ENABLED, \
+		"Enable controller rumble", "If using a controller with a rumble motor, provide haptic feedback when the kid is hurt." ) \
+	_(JOYSTICK_THRESHOLD, NUMBER(&joystick_threshold, INT, 0, INT16_MAX, NOMAP), ENABLED, \
+		"Joystick threshold", "Joystick 'dead zone' sensitivity threshold." ) \
+	_(JOYSTICK_ONLY_HORIZONTAL, TOGGLE(&joystick_only_horizontal), ENABLED, \
+		"Horizontal joystick movement only", "Use joysticks for horizontal movement only, not all-directional. ") \
+	_(RESET_ALL_SETTINGS, TEXT_ONLY, ENABLED, \
+		"Restore defaults...", "Revert all settings to the default state." )
+
+//        id, style, type[(num,min,max,names_list)], linked, required, text, explanation
+#define VISUALS_SETTINGS(_) \
+	_(FULLSCREEN, TOGGLE(&start_fullscreen), ENABLED, \
+		"Start fullscreen", "Start the game in fullscreen mode.\n" \
+		                    "You can also toggle fullscreen by pressing Alt+Enter." ) \
+	_(USE_CORRECT_ASPECT_RATIO, TOGGLE(&use_correct_aspect_ratio), ENABLED, \
+		"Use 4:3 aspect ratio", "Render the game in the originally intended 4:3 aspect ratio.\n" \
+		                        "NB. Works best using a high resolution." ) \
+	_(USE_INTEGER_SCALING, TOGGLE(&use_integer_scaling), ENABLED_IF(integer_scaling_possible), \
+		"Use integer scaling", "Enable pixel perfect scaling. That is, make all pixels the same size by forcing integer scale factors.\n" \
+	                               "Combining with 4:3 aspect ratio requires at least 1600x1200.\n" \
+		                       "You need to compile with SDL 2.0.5 or newer to enable this." ) \
+	_(SCALING_TYPE, NUMBER(&scaling_type, BYTE, 0, 2, MAP(scaling_type, NAMES, {"Sharp", "Fuzzy", "Blurry",})), ENABLED, \
+		"Scaling method", "Sharp - Use nearest neighbour resampling.\n" \
+		                  "Fuzzy - First upscale to double size, then use smooth scaling.\n" \
+		                  "Blurry - Use smooth scaling." ) \
+IF(USE_FADE, \
+	_(ENABLE_FADE, TOGGLE(&enable_fade), ENABLED, \
+		"Fading enabled", "Turn fading on or off." ) \
+) \
+IF(USE_FLASH, \
+	_(ENABLE_FLASH, TOGGLE(&enable_flash), ENABLED, \
+		"Flashing enabled", "Turn flashing on or off." ) \
+) \
+IF(USE_LIGHTING, \
+	_(ENABLE_LIGHTING, TOGGLE(&enable_lighting), ENABLED, \
+		"Torch shadows enabled", "Darken those parts of the screen which are not near a torch." ) \
+) \
+
+#define GAMEPLAY_SETTINGS(_) \
+	_(ENABLE_CHEATS, TOGGLE(&cheats_enabled), ENABLED, \
+		"Enable cheats", "Turn cheats on or off."/*"\nAlso, display the CHEATS option on the pause menu."*/ ) \
+IF(USE_COPYPROT, \
+	_(ENABLE_COPYPROT, TOGGLE(&enable_copyprot), ENABLED, \
+		"Enable copy protection level", "Enable or disable the potions (copy protection) level." ) \
+) \
+IF(USE_QUICKSAVE, \
+	_(ENABLE_QUICKSAVE, TOGGLE(&enable_quicksave), ENABLED, \
+		"Enable quicksave", "Enable quicksave/load feature.\nPress F6 to quicksave, F9 to quickload." ) \
+	_(ENABLE_QUICKSAVE_PENALTY, TOGGLE(&enable_quicksave_penalty), ENABLED, \
+		"Quicksave time penalty", "Try to let time run out when quickloading (similar to dying).\n" \
+		                         "Actually, the 'remaining time' will still be restored, " \
+		                         "but a penalty (up to one minute) will be applied." ) \
+) \
+IF(USE_REPLAY, \
+	_(ENABLE_REPLAY, TOGGLE(&enable_replay), ENABLED, \
+		"Enable replays", "Enable recording/replay feature.\n" \
+		                  "Press Ctrl+Tab in-game to start recording.\n" \
+		                  "To stop, press Ctrl+Tab again." ) \
+) \
+	_(USE_FIXES_AND_ENHANCEMENTS, TOGGLE(&use_fixes_and_enhancements), ENABLED, \
+		"Enhanced mode (allow bug fixes)", "Turn on game fixes and enhancements.\n" \
+		                                   "Below, you can turn individual fixes/enhancements on or off.\n" \
+		                                   "NOTE: Some fixes disable 'tricks' that depend on game quirks." ) \
+	_(ENABLE_CROUCH_AFTER_CLIMBING, TOGGLE(&fixes_saved.enable_crouch_after_climbing), ENABLED_IF(use_fixes_and_enhancements), \
+		"Enable crouching after climbing", "Adds a way to crouch immediately after climbing up: press down and forward simultaneously. " \
+		                                   "In the original game, this could not be done (pressing down always causes the kid to climb down)." ) \
+	_(ENABLE_FREEZE_TIME_DURING_END_MUSIC, TOGGLE(&fixes_saved.enable_freeze_time_during_end_music), ENABLED_IF(use_fixes_and_enhancements), \
+		"Freeze time during level end music", "Time runs out while the level ending music plays; however, the music can be skipped by disabling sound. " \
+		                                      "This option stops time while the ending music is playing (so there is no need to disable sound)." ) \
+	_(ENABLE_REMEMBER_GUARD_HP, TOGGLE(&fixes_saved.enable_remember_guard_hp), ENABLED_IF(use_fixes_and_enhancements), \
+		"Remember guard hitpoints", "Enable guard hitpoints not resetting to their default (maximum) value when re-entering the room." ) \
+	_(ENABLE_SUPER_HIGH_JUMP, TOGGLE(&fixes_saved.enable_super_high_jump), ENABLED_IF(use_fixes_and_enhancements), \
+		"Enable super high jump", "Prince in feather mode (after drinking a green potion) can jump 2 stories high." ) \
+	_(FIX_GATE_SOUNDS, TOGGLE(&fixes_saved.fix_gate_sounds), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix gate sounds bug", "If a room is linked to itself on the left, the closing sounds of the gates in that room can't be heard." ) \
+	_(TWO_COLL_BUG, TOGGLE(&fixes_saved.fix_two_coll_bug), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix two collisions bug", "An open gate or chomper may enable the Kid to go through walls. (Trick 7, 37, 62)" ) \
+	_(FIX_INFINITE_DOWN_BUG, TOGGLE(&fixes_saved.fix_infinite_down_bug), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix infinite down bug", "If a room is linked to itself at the bottom, and the Kid's column has no floors, the game hangs." ) \
+	_(FIX_GATE_DRAWING_BUG, TOGGLE(&fixes_saved.fix_gate_drawing_bug), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix gate drawing bug", "When a gate is under another gate, the top of the bottom gate is not visible." ) \
+	_(FIX_BIGPILLAR_CLIMB, TOGGLE(&fixes_saved.fix_bigpillar_climb), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix big pillar climbing bug", "When climbing up to a floor with a big pillar top behind, turned right, Kid sees through floor." ) \
+	_(FIX_JUMP_DISTANCE_AT_EDGE, TOGGLE(&fixes_saved.fix_jump_distance_at_edge), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix jump distance at edge", "When climbing up two floors, turning around and jumping upward, the kid falls down. " \
+		                             "This fix makes the workaround of Trick 25 unnecessary." ) \
+	_(FIX_EDGE_DISTANCE_CHECK_WHEN_CLIMBING, TOGGLE(&fixes_saved.fix_edge_distance_check_when_climbing), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix edge distance check when climbing", "When climbing to a higher floor, the game unnecessarily checks how far away the edge below is. " \
+		                                         "Sometimes you will \"teleport\" some distance when climbing from firm ground." ) \
+	_(FIX_PAINLESS_FALL_ON_GUARD, TOGGLE(&fixes_saved.fix_painless_fall_on_guard), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix painless fall on guard", "Falling from a great height directly on top of guards does not hurt." ) \
+	_(FIX_WALL_BUMP_TRIGGERS_TILE_BELOW, TOGGLE(&fixes_saved.fix_wall_bump_triggers_tile_below), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix wall bump triggering tile below", "Bumping against a wall may cause a loose floor below to drop, even though it has not been touched. (Trick 18, 34)" ) \
+	_(FIX_STAND_ON_THIN_AIR, TOGGLE(&fixes_saved.fix_stand_on_thin_air), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix standing on thin air", "When pressing a loose tile, you can temporarily stand on thin air by standing up from crouching." ) \
+	_(FIX_PRESS_THROUGH_CLOSED_GATES, TOGGLE(&fixes_saved.fix_press_through_closed_gates), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix pressing through closed gates", "Buttons directly to the right of gates can be pressed even though the gate is closed (Trick 1)" ) \
+	_(FIX_GRAB_FALLING_SPEED, TOGGLE(&fixes_saved.fix_grab_falling_speed), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix grab falling speed", "By jumping and bumping into a wall, you can sometimes grab a ledge two stories down (which should not be possible)." ) \
+	_(FIX_SKELETON_CHOMPER_BLOOD, TOGGLE(&fixes_saved.fix_skeleton_chomper_blood), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix skeleton chomper blood", "When chomped, skeletons cause the chomper to become bloody even though skeletons do not have blood." ) \
+	_(FIX_MOVE_AFTER_DRINK, TOGGLE(&fixes_saved.fix_move_after_drink), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix movement after drinking", "Controls do not get released properly when drinking a potion, sometimes causing unintended movements." ) \
+	_(FIX_LOOSE_LEFT_OF_POTION, TOGGLE(&fixes_saved.fix_loose_left_of_potion), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix loose floor left of potion", "A drawing bug occurs when a loose tile is placed to the left of a potion (or sword)." ) \
+	_(FIX_GUARD_FOLLOWING_THROUGH_CLOSED_GATES, TOGGLE(&fixes_saved.fix_guard_following_through_closed_gates), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix guards passing closed gates", "Guards may \"follow\" the kid to the room on the left or right, even though there is a closed gate in between." ) \
+	_(FIX_SAFE_LANDING_ON_SPIKES, TOGGLE(&fixes_saved.fix_safe_landing_on_spikes), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix safe landing on spikes", "When landing on the edge of a spikes tile, it is considered safe. (Trick 65)" ) \
+	_(FIX_GLIDE_THROUGH_WALL, TOGGLE(&fixes_saved.fix_glide_through_wall), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix gliding through walls", "The kid may glide through walls after turning around while running (especially when weightless)." ) \
+	_(FIX_DROP_THROUGH_TAPESTRY, TOGGLE(&fixes_saved.fix_drop_through_tapestry), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix dropping through tapestries", "The kid can drop down through a closed gate, when there is a tapestry (doortop) above the gate." ) \
+	_(FIX_LAND_AGAINST_GATE_OR_TAPESTRY, TOGGLE(&fixes_saved.fix_land_against_gate_or_tapestry), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix land against gate or tapestry", "When dropping down and landing right in front of a wall, the entire landing animation should normally play. " \
+		                                     "However, when falling against a closed gate or a tapestry(+floor) tile, the animation aborts." ) \
+	_(FIX_UNINTENDED_SWORD_STRIKE, TOGGLE(&fixes_saved.fix_unintended_sword_strike), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix unintended sword strike", "Sometimes, the kid may automatically strike immediately after drawing the sword. " \
+		                               "This especially happens when dropping down from a higher floor and then turning towards the opponent." ) \
+	_(FIX_RETREAT_WITHOUT_LEAVING_ROOM, TOGGLE(&fixes_saved.fix_retreat_without_leaving_room), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix retreat without leaving room", "By repeatedly pressing 'back' in a swordfight, you can retreat out of a room without the room changing. (Trick 35)" ) \
+	_(FIX_RUNNING_JUMP_THROUGH_TAPESTRY, TOGGLE(&fixes_saved.fix_running_jump_through_tapestry), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix running jumps through tapestries", "The kid can jump through a tapestry with a running jump to the left, if there is a floor above it." ) \
+	_(FIX_PUSH_GUARD_INTO_WALL, TOGGLE(&fixes_saved.fix_push_guard_into_wall), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix pushing guards into walls", "Guards can be pushed into walls, because the game does not correctly check for walls located behind a guard." ) \
+	_(FIX_JUMP_THROUGH_WALL_ABOVE_GATE, TOGGLE(&fixes_saved.fix_jump_through_wall_above_gate), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix jump through wall above gate", "By doing a running jump into a wall, you can fall behind a closed gate two floors down. (e.g. skip in Level 7)" ) \
+	_(FIX_CHOMPERS_NOT_STARTING, TOGGLE(&fixes_saved.fix_chompers_not_starting), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix chompers not starting", "If you grab a ledge that is one or more floors down, the chompers on that row will not start." ) \
+	_(FIX_FEATHER_INTERRUPTED_BY_LEVELDOOR, TOGGLE(&fixes_saved.fix_feather_interrupted_by_leveldoor), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix leveldoor interrupting feather fall", "As soon as a level door has completely opened, the feather fall effect is interrupted because the sound stops." ) \
+	_(FIX_OFFSCREEN_GUARDS_DISAPPEARING, TOGGLE(&fixes_saved.fix_offscreen_guards_disappearing), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix offscreen guards disappearing", "Guards will often not reappear in another room if they have been pushed (partly or entirely) offscreen." ) \
+	_(FIX_MOVE_AFTER_SHEATHE, TOGGLE(&fixes_saved.fix_move_after_sheathe), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix movement after sheathing", "While putting the sword away, if you press forward and down, and then release down, the kid will still duck." ) \
+	_(FIX_HIDDEN_FLOORS_DURING_FLASHING, TOGGLE(&fixes_saved.fix_hidden_floors_during_flashing), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix hidden floors during flashing", "After uniting with the shadow in level 12, the hidden floors will not appear until after the flashing stops." ) \
+	_(FIX_HANG_ON_TELEPORT, TOGGLE(&fixes_saved.fix_hang_on_teleport), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix hang on teleport bug", "By jumping towards one of the bottom corners of the room and grabbing a ledge, you can teleport to the room above." ) \
+	_(FIX_EXIT_DOOR, TOGGLE(&fixes_saved.fix_exit_door), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix exit doors", "You can enter closed exit doors after you met the shadow or Jaffar died, or after you opened one of multiple exits." ) \
+	_(FIX_QUICKSAVE_DURING_FEATHER, TOGGLE(&fixes_saved.fix_quicksave_during_feather), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix quick save in feather mode", "You cannot save game while floating in feather mode." ) \
+	_(FIX_CAPED_PRINCE_SLIDING_THROUGH_GATE, TOGGLE(&fixes_saved.fix_caped_prince_sliding_through_gate), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix sliding through closed gate", "If you are using the caped prince graphics, and crouch with your back towards a closed gate on the left edge on the room, then the prince will slide through the gate." ) \
+	_(FIX_DOORTOP_DISABLING_GUARD, TOGGLE(&fixes_saved.fix_doortop_disabling_guard), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix door top disabling guard", "Guards become inactive if they are standing on a door top (with floor), or if the prince is standing on a door top." ) \
+	_(FIX_JUMPING_OVER_GUARD, TOGGLE(&fixes_saved.fix_jumping_over_guard), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix jumping over guard", "Prince can jump over guards with a properly timed running jump." ) \
+	_(FIX_DROP_2_ROOMS_CLIMBING_LOOSE_TILE, TOGGLE(&fixes_saved.fix_drop_2_rooms_climbing_loose_tile), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix dropping 2 rooms with loose tile", "Prince can fall 2 rooms down while climbing a loose tile in a room above. (Trick 153)" ) \
+	_(FIX_FALLING_THROUGH_FLOOR_DURING_SWORD_STRIKE, TOGGLE(&fixes_saved.fix_falling_through_floor_during_sword_strike), ENABLED_IF(use_fixes_and_enhancements), \
+		"Fix dropping through floor striking", "Prince or guard can fall through the floor during a sword strike sequence." )
+
+//        id, style, type[(num,min,max,names_list)], linked, required, text, explanation
+#define MODS_SETTINGS(_) \
+	_(USE_CUSTOM_OPTIONS, TOGGLE(&use_custom_options), ENABLED, \
+		"Use customization options", "Turn customization options on or off.\n(default = OFF)" ) \
+	_(LEVEL_SETTINGS, TEXT_ONLY, ENABLED_IF(use_custom_options), \
+		"Customize level...", "Change level-specific options (such as level type, guard type, number of guard hitpoints)." ) \
+	_(START_MINUTES_LEFT, NUMBER(&custom_saved.start_minutes_left, SHORT, -1, INT16_MAX, NOMAP), ENABLED_IF(use_custom_options), \
+		"Starting minutes left", "Starting minutes left. (default = 60)\n" \
+		                         "To disable the time limit completely, set this to -1." ) \
+	_(START_TICKS_LEFT, NUMBER(&custom_saved.start_ticks_left, WORD, 0, UINT16_MAX, NOMAP), ENABLED_IF(use_custom_options), \
+		"Starting seconds left", "Starting number of seconds left in the first minute.\n(default = 59.92)" ) \
+	_(START_HITP, NUMBER(&custom_saved.start_hitp, WORD, 0, UINT16_MAX, NOMAP), ENABLED_IF(use_custom_options), \
+		"Starting hitpoints", "Starting hitpoints. (default = 3)" ) \
+	_(MAX_HITP_ALLOWED, NUMBER(&custom_saved.max_hitp_allowed, WORD, 0, UINT16_MAX, NOMAP), ENABLED_IF(use_custom_options), \
+		"Max hitpoints allowed", "Maximum number of hitpoints you can get. (default = 10)" ) \
+	_(SAVING_ALLOWED_FIRST_LEVEL, NUMBER(&custom_saved.saving_allowed_first_level, WORD, 0, 16, MAP_VAR(never_is_16_list)), ENABLED_IF(use_custom_options), \
+		"Saving allowed: first level", "First level where you can save the game. (default = 3)" ) \
+	_(SAVING_ALLOWED_LAST_LEVEL, NUMBER(&custom_saved.saving_allowed_last_level, WORD, 0, 16, MAP_VAR(never_is_16_list)), ENABLED_IF(use_custom_options), \
+		"Saving allowed: last level", "Last level where you can save the game. (default = 13)" ) \
+	_(START_UPSIDE_DOWN, TOGGLE(&custom_saved.start_upside_down), ENABLED_IF(use_custom_options), \
+		"Start with the screen flipped", "Start the game with the screen flipped upside down, similar to Shift+I (default = OFF)" ) \
+	_(START_IN_BLIND_MODE, TOGGLE(&custom_saved.start_in_blind_mode), ENABLED_IF(use_custom_options), \
+		"Start in blind mode", "Start in blind mode, similar to Shift+B (default = OFF)" ) \
+	_(COPYPROT_LEVEL, NUMBER(&custom_saved.copyprot_level, WORD, 0, 16, MAP_VAR(never_is_16_list)), ENABLED_IF(use_custom_options), \
+		"Copy protection before level", "The potions level will appear before this level. (default = 2)" ) \
+	_(DRAWN_TILE_TOP_LEVEL_EDGE, NUMBER(&custom_saved.drawn_tile_top_level_edge, BYTE, 0, 31, MAP_VAR(tile_type_setting_names_list)), ENABLED_IF(use_custom_options), \
+		"Drawn tile: top level edge", "Tile drawn at the top of the room if there is no room that way. (default = floor)" ) \
+	_(DRAWN_TILE_LEFT_LEVEL_EDGE, NUMBER(&custom_saved.drawn_tile_left_level_edge, BYTE, 0, 31, MAP_VAR(tile_type_setting_names_list)), ENABLED_IF(use_custom_options), \
+		"Drawn tile: left level edge", "Tile drawn at the left of the room if there is no room that way. (default = wall)" ) \
+	_(LEVEL_EDGE_HIT_TILE, NUMBER(&custom_saved.level_edge_hit_tile, BYTE, 0, 31, MAP_VAR(tile_type_setting_names_list)), ENABLED_IF(use_custom_options), \
+		"Level edge hit tile", "Tile behavior at the top or left of the room if there is no room that way (default = wall)" ) \
+	_(ALLOW_TRIGGERING_ANY_TILE, TOGGLE(&custom_saved.allow_triggering_any_tile), ENABLED_IF(use_custom_options), \
+		"Allow triggering any tile", "Enable triggering any tile. For example a button could make loose floors fall, or start a stuck chomper. (default = OFF)" ) \
+	_(ENABLE_WDA_IN_PALACE, TOGGLE(&custom_saved.enable_wda_in_palace), ENABLED_IF(use_custom_options), \
+		"Enable WDA in palace", "Enable the dungeon wall drawing algorithm in the palace.\n" \
+		                        "N.B. Use with a modified VPALACE.DAT that provides dungeon-like wall graphics! (default = OFF)" ) \
+	_(FIRST_LEVEL, NUMBER(&custom_saved.first_level, WORD, 0, 15, NOMAP), ENABLED_IF(use_custom_options), \
+		"First level", "Level that will be loaded when starting a new game.\n(default = 1)" ) \
+	_(SKIP_TITLE, TOGGLE(&custom_saved.skip_title), ENABLED_IF(use_custom_options), \
+		"Skip title sequence", "Always skip the title sequence: the first level will be loaded immediately.\n(default = OFF)" ) \
+	_(SHIFT_L_ALLOWED_UNTIL_LEVEL, NUMBER(&custom_saved.shift_L_allowed_until_level, WORD, 0, 16, MAP_VAR(never_is_16_list)), ENABLED_IF(use_custom_options), \
+		"Shift+L allowed until level", "First level where level skipping with Shift+L is denied in non-cheat mode.\n(default = 4)" ) \
+	_(SHIFT_L_REDUCED_MINUTES, NUMBER(&custom_saved.shift_L_reduced_minutes, WORD, 0, UINT16_MAX, NOMAP), ENABLED_IF(use_custom_options), \
+		"Minutes left after Shift+L used", "Number of minutes left after Shift+L is used in non-cheat mode.\n(default = 15)" ) \
+	_(SHIFT_L_REDUCED_TICKS, NUMBER(&custom_saved.shift_L_reduced_ticks, WORD, 0, UINT16_MAX, NOMAP), ENABLED_IF(use_custom_options), \
+		"Seconds left after Shift+L used", "Number of seconds left after Shift+L is used in non-cheat mode.\n(default = 59.92)" ) \
+	_(DEMO_HITP, NUMBER(&custom_saved.demo_hitp, WORD, 0, UINT16_MAX, NOMAP), ENABLED_IF(use_custom_options), \
+		"Demo level hitpoints", "Hitpoints the kid has on the demo level.\n(default = 4)" ) \
+	_(DEMO_END_ROOM, NUMBER(&custom_saved.demo_end_room, WORD, 1, 24, NOMAP), ENABLED_IF(use_custom_options), \
+		"Demo level ending room", "Demo level ending room.\n(default = 24)" ) \
+	_(INTRO_MUSIC_LEVEL, NUMBER(&custom_saved.intro_music_level, WORD, 0, 16, MAP_VAR(never_is_16_list)), ENABLED_IF(use_custom_options), \
+		"Level with intro music", "Level where the presentation music is played when the kid crouches down. (default = 1)\n" \
+		                          "Note: only works if this level is the starting level." ) \
+	_(HAVE_SWORD_FROM_LEVEL, NUMBER(&custom_saved.have_sword_from_level, WORD, 1, 16, MAP_VAR(never_is_16_list)), ENABLED_IF(use_custom_options), \
+		"Have sword from level", "First level (except the demo level) where kid has the sword.\n(default = 2)\n" ) \
+	_(CHECKPOINT_LEVEL, NUMBER(&custom_saved.checkpoint_level, WORD, 0, 16, MAP_VAR(never_is_16_list)), ENABLED_IF(use_custom_options), \
+		"Checkpoint level", "Level where there is a checkpoint. (default = 3)\n" \
+		                    "The checkpoint is triggered when leaving room 7 to the left." ) \
+	_(CHECKPOINT_RESPAWN_DIR, NUMBER(&custom_saved.checkpoint_respawn_dir, SBYTE, -1, 0, MAP_VAR(direction_setting_names_list)), ENABLED_IF(use_custom_options), \
+		"Checkpoint respawn direction", "Respawn direction after triggering the checkpoint.\n(default = left)" ) \
+	_(CHECKPOINT_RESPAWN_ROOM, NUMBER(&custom_saved.checkpoint_respawn_room, BYTE, 1, 24, NOMAP), ENABLED_IF(use_custom_options), \
+		"Checkpoint respawn room", "Room where you respawn after triggering the checkpoint.\n(default = 2)" ) \
+	_(CHECKPOINT_RESPAWN_TILEPOS, NUMBER(&custom_saved.checkpoint_respawn_tilepos, BYTE, 0, 29, NOMAP), ENABLED_IF(use_custom_options), \
+		"Checkpoint respawn tile position", "Tile position (0 to 29) where you respawn after triggering the checkpoint.\n(default = 6)" ) \
+	_(CHECKPOINT_CLEAR_TILE_ROOM, NUMBER(&custom_saved.checkpoint_clear_tile_room, BYTE, 1, 24, NOMAP), ENABLED_IF(use_custom_options), \
+		"Checkpoint clear tile room", "Room where a tile is cleared after respawning at the checkpoint location.\n(default = 7)" ) \
+	_(CHECKPOINT_CLEAR_TILE_COL, NUMBER(&custom_saved.checkpoint_clear_tile_col, BYTE, 0, 9, NOMAP), ENABLED_IF(use_custom_options), \
+		"Checkpoint clear tile column", "Location (column/row) of the cleared tile after respawning at the checkpoint location.\n(default: column = 4, row = top)" ) \
+	_(CHECKPOINT_CLEAR_TILE_ROW, NUMBER(&custom_saved.checkpoint_clear_tile_row, BYTE, 0, 2, MAP_VAR(row_setting_names_list)), ENABLED_IF(use_custom_options), \
+		"Checkpoint clear tile row", "Location (column/row) of the cleared tile after respawning at the checkpoint location.\n(default: column = 4, row = top)" ) \
+	_(SKELETON_LEVEL, NUMBER(&custom_saved.skeleton_level, WORD, 0, 16, MAP_VAR(never_is_16_list)), ENABLED_IF(use_custom_options), \
+		"Skeleton awakes level", "Level and room where a skeleton can come alive.\n(default: level = 3, room = 1)" ) \
+	_(SKELETON_ROOM, NUMBER(&custom_saved.skeleton_room, BYTE, 1, 24, NOMAP), ENABLED_IF(use_custom_options), \
+		"Skeleton awakes room", "Level and room where a skeleton can come alive.\n(default: level = 3, room = 1)" ) \
+	_(SKELETON_TRIGGER_COLUMN_1, NUMBER(&custom_saved.skeleton_trigger_column_1, BYTE, 0, 9, NOMAP), ENABLED_IF(use_custom_options), \
+		"Skeleton trigger column (1)", "The skeleton will wake up if the kid is on one of these two columns.\n(defaults = 2,3)" ) \
+	_(SKELETON_TRIGGER_COLUMN_2, NUMBER(&custom_saved.skeleton_trigger_column_2, BYTE, 0, 9, NOMAP), ENABLED_IF(use_custom_options), \
+		"Skeleton trigger column (2)", "The skeleton will wake up if the kid is on one of these two columns.\n(defaults = 2,3)" ) \
+	_(SKELETON_COLUMN, NUMBER(&custom_saved.skeleton_column, BYTE, 0, 9, NOMAP), ENABLED_IF(use_custom_options), \
+		"Skeleton tile column", "Location (column/row) of the skeleton tile that will awaken.\n(default: column = 5, row = middle)" ) \
+	_(SKELETON_ROW, NUMBER(&custom_saved.skeleton_row, BYTE, 0, 2, MAP_VAR(row_setting_names_list)), ENABLED_IF(use_custom_options), \
+		"Skeleton tile row", "Location (column/row) of the skeleton tile that will awaken.\n(default: column = 5, row = middle)" ) \
+	_(SKELETON_REQUIRE_OPEN_LEVEL_DOOR, TOGGLE(&custom_saved.skeleton_require_open_level_door), ENABLED_IF(use_custom_options), \
+		"Skeleton requires level door", "Whether the level door must first be opened before the skeleton awakes.\n(default = true)" ) \
+	_(SKELETON_SKILL, NUMBER(&custom_saved.skeleton_skill, BYTE, 0, 15, NOMAP), ENABLED_IF(use_custom_options), \
+		"Skeleton skill", "Skill of the awoken skeleton.\n(default = 2)" ) \
+	_(SKELETON_REAPPEAR_ROOM, NUMBER(&custom_saved.skeleton_reappear_room, BYTE, 1, 24, NOMAP), ENABLED_IF(use_custom_options), \
+		"Skeleton reappear room", "If the skeleton falls into this room, it will reappear there.\n(default = 3)" ) \
+	_(SKELETON_REAPPEAR_X, NUMBER(&custom_saved.skeleton_reappear_x, BYTE, 0, 255, NOMAP), ENABLED_IF(use_custom_options), \
+		"Skeleton reappear X coordinate", "Horizontal coordinate where the skeleton reappears.\n(default = 133)\n" \
+		                                  "(58 = left edge of the room, 198 = right edge)" ) \
+	_(SKELETON_REAPPEAR_ROW, NUMBER(&custom_saved.skeleton_reappear_row, BYTE, 0, 2, MAP_VAR(row_setting_names_list)), ENABLED_IF(use_custom_options), \
+		"Skeleton reappear row", "Row on which the skeleton reappears.\n(default = middle)" ) \
+	_(SKELETON_REAPPEAR_DIR, NUMBER(&custom_saved.skeleton_reappear_dir, SBYTE, -1, 0, MAP_VAR(direction_setting_names_list)), ENABLED_IF(use_custom_options), \
+		"Skeleton reappear direction", "Direction the skeleton is facing when it reappears.\n(default = right)" ) \
+	_(MIRROR_LEVEL, NUMBER(&custom_saved.mirror_level, WORD, 0, 16, MAP_VAR(never_is_16_list)), ENABLED_IF(use_custom_options), \
+		"Mirror level", "Level and room where the mirror appears.\n(default: level = 4, room = 4)" ) \
+	_(MIRROR_ROOM, NUMBER(&custom_saved.mirror_room, BYTE, 1, 24, NOMAP), ENABLED_IF(use_custom_options), \
+		"Mirror room", "Level and room where the mirror appears.\n(default: level = 4, room = 4)" ) \
+	_(MIRROR_COLUMN, NUMBER(&custom_saved.mirror_column, BYTE, 0, 9, NOMAP), ENABLED_IF(use_custom_options), \
+		"Mirror column", "Location (column/row) of the tile where the mirror appears.\n(default: column = 4, row = top)" ) \
+	_(MIRROR_ROW, NUMBER(&custom_saved.mirror_row, BYTE, 0, 2, MAP_VAR(row_setting_names_list)), ENABLED_IF(use_custom_options), \
+		"Mirror row", "Location (column/row) of the tile where the mirror appears.\n(default: column = 4, row = top)" ) \
+	_(MIRROR_TILE, NUMBER(&custom_saved.mirror_tile, BYTE, 0, 31, MAP_VAR(tile_type_setting_names_list)), ENABLED_IF(use_custom_options), \
+		"Mirror tile", "Tile type that appears when the mirror should appear.\n(default = mirror)" ) \
+	_(SHOW_MIRROR_IMAGE, TOGGLE(&custom_saved.show_mirror_image), ENABLED_IF(use_custom_options), \
+		"Show mirror image", "Show the kid's mirror image in the mirror.\n(default = true)" ) \
+	_(SHADOW_STEAL_LEVEL, NUMBER(&custom_saved.shadow_steal_level, BYTE, 0, 16, MAP_VAR(never_is_16_list)), ENABLED_IF(use_custom_options), \
+		"Shadow steal level", "Level where the shadow steals a potion.\n(default = 5)" ) \
+	_(SHADOW_STEAL_ROOM, NUMBER(&custom_saved.shadow_steal_room, BYTE, 1, 24, NOMAP), ENABLED_IF(use_custom_options), \
+		"Shadow steal room", "Room where the shadow steals a potion.\n(default = 24)" ) \
+	_(SHADOW_STEP_LEVEL, NUMBER(&custom_saved.shadow_step_level, BYTE, 0, 16, MAP_VAR(never_is_16_list)), ENABLED_IF(use_custom_options), \
+		"Shadow step level", "Level where the shadow steps on a button.\n(default = 6)" ) \
+	_(SHADOW_STEP_ROOM, NUMBER(&custom_saved.shadow_step_room, BYTE, 1, 24, NOMAP), ENABLED_IF(use_custom_options), \
+		"Shadow step room", "Room where the shadow steps on a button.\n(default = 1)" ) \
+	_(FALLING_EXIT_LEVEL, NUMBER(&custom_saved.falling_exit_level, WORD, 0, 16, MAP_VAR(never_is_16_list)), ENABLED_IF(use_custom_options), \
+		"Falling exit level", "Level where the kid can progress to the next level by falling off a specific room.\n(default = 6)" ) \
+	_(FALLING_EXIT_ROOM, NUMBER(&custom_saved.falling_exit_room, BYTE, 1, 24, NOMAP), ENABLED_IF(use_custom_options), \
+		"Falling exit room", "Room where the kid can progress to the next level by falling down.\n(default = 1)" ) \
+	_(FALLING_ENTRY_LEVEL, NUMBER(&custom_saved.falling_entry_level, WORD, 0, 16, MAP_VAR(never_is_16_list)), ENABLED_IF(use_custom_options), \
+		"Falling entry level", "If the kid starts in this level in this room, the starting room will not be shown,\n" \
+			"but the room below instead, to allow for a falling entry. (default: level = 7, room = 17)" ) \
+	_(FALLING_ENTRY_ROOM, NUMBER(&custom_saved.falling_entry_room, BYTE, 1, 24, NOMAP), ENABLED_IF(use_custom_options), \
+		"Falling entry room", "If the kid starts in this level in this room, the starting room will not be shown,\n" \
+			"but the room below instead, to allow for a falling entry. (default: level = 7, room = 17)" ) \
+	_(MOUSE_LEVEL, NUMBER(&custom_saved.mouse_level, WORD, 0, 16, MAP_VAR(never_is_16_list)), ENABLED_IF(use_custom_options), \
+		"Mouse level", "Level where the mouse appears.\n(default = 8)" ) \
+	_(MOUSE_ROOM, NUMBER(&custom_saved.mouse_room, BYTE, 1, 24, NOMAP), ENABLED_IF(use_custom_options), \
+		"Mouse room", "Room where the mouse appears.\n(default = 16)" ) \
+	_(MOUSE_DELAY, NUMBER(&custom_saved.mouse_delay, WORD, 0, UINT16_MAX, NOMAP), ENABLED_IF(use_custom_options), \
+		"Mouse delay", "Number of seconds to wait before the mouse appears.\n(default = 12.5)" ) \
+	_(MOUSE_OBJECT, NUMBER(&custom_saved.mouse_object, BYTE, 0, 255, NOMAP), ENABLED_IF(use_custom_options), \
+		"Mouse object", "Mouse object type. (default = 24)\n" \
+		                "Be careful: a value not 24 will change the mouse for the kid." ) \
+	_(MOUSE_START_X, NUMBER(&custom_saved.mouse_start_x, BYTE, 0, 255, NOMAP), ENABLED_IF(use_custom_options), \
+		"Mouse start X coordinate", "Horizontal starting coordinate of the mouse.\n(default = 200)" ) \
+	_(LOOSE_TILES_LEVEL, NUMBER(&custom_saved.loose_tiles_level, WORD, 0, 16, MAP_VAR(never_is_16_list)), ENABLED_IF(use_custom_options), \
+		"Loose tiles level", "Level where loose floor tiles will fall down.\n(default = 13)" ) \
+	_(LOOSE_TILES_ROOM_1, NUMBER(&custom_saved.loose_tiles_room_1, BYTE, 1, 24, NOMAP), ENABLED_IF(use_custom_options), \
+		"Loose tiles room (1)", "Rooms where visible loose floor tiles will fall down.\n(default = 23, 16)" ) \
+	_(LOOSE_TILES_ROOM_2, NUMBER(&custom_saved.loose_tiles_room_2, BYTE, 1, 24, NOMAP), ENABLED_IF(use_custom_options), \
+		"Loose tiles room (2)", "Rooms where visible loose floor tiles will fall down.\n(default = 23, 16)" ) \
+	_(LOOSE_TILES_FIRST_TILE, NUMBER(&custom_saved.loose_tiles_first_tile, BYTE, 0, 29, NOMAP), ENABLED_IF(use_custom_options), \
+		"Loose tiles first tile", "Range of loose floor tile positions that will be pressed.\n(default = 22 to 27)" ) \
+	_(LOOSE_TILES_LAST_TILE, NUMBER(&custom_saved.loose_tiles_last_tile, BYTE, 0, 29, NOMAP), ENABLED_IF(use_custom_options), \
+		"Loose tiles last tile", "Range of loose floor tile positions that will be pressed.\n(default = 22 to 27)" ) \
+	_(JAFFAR_VICTORY_LEVEL, NUMBER(&custom_saved.jaffar_victory_level, WORD, 0, 16, MAP_VAR(never_is_16_list)), ENABLED_IF(use_custom_options), \
+		"Jaffar victory level", "Killing the guard in this level causes the screen to flash, and event 0 to be triggered upon leaving the room.\n(default = 13)" ) \
+	_(JAFFAR_VICTORY_FLASH_TIME, NUMBER(&custom_saved.jaffar_victory_flash_time, BYTE, 0, UINT16_MAX, NOMAP), ENABLED_IF(use_custom_options), \
+		"Jaffar victory flash time", "How long the screen will flash after killing Jaffar.\n(default = 18)" ) \
+	_(HIDE_LEVEL_NUMBER_FIRST_LEVEL, NUMBER(&custom_saved.hide_level_number_from_level, WORD, 0, 16, MAP_VAR(never_is_16_list)), ENABLED_IF(use_custom_options), \
+		"Hide level number from level", "First level where the level number will not be displayed.\n(default = 14)" ) \
+	_(LEVEL_13_LEVEL_NUMBER, NUMBER(&custom_saved.level_13_level_number, BYTE, 0, UINT16_MAX, NOMAP), ENABLED_IF(use_custom_options), \
+		"Level 13 displayed level number", "Level number displayed on level 13.\n(default = 12)" ) \
+	_(VICTORY_STOPS_TIME_LEVEL, NUMBER(&custom_saved.victory_stops_time_level, WORD, 0, 16, MAP_VAR(never_is_16_list)), ENABLED_IF(use_custom_options), \
+		"Victory stops time level", "Level where Jaffar's death stops time.\n(default = 13)" ) \
+	_(WIN_LEVEL, NUMBER(&custom_saved.win_level, WORD, 0, 16, MAP_VAR(never_is_16_list)), ENABLED_IF(use_custom_options), \
+		"Level where you can win", "Level and room where you can win the game.\n(default: level = 14, room = 5)" ) \
+	_(WIN_ROOM, NUMBER(&custom_saved.win_room, BYTE, 1, 24, NOMAP), ENABLED_IF(use_custom_options), \
+		"Room where you can win", "Level and room where you can win the game.\n(default: level = 14, room = 5)" ) \
+	_(LOOSE_FLOOR_DELAY, NUMBER(&custom_saved.loose_floor_delay, BYTE, 0, 127, NOMAP), ENABLED_IF(use_custom_options), \
+		"Loose floor delay", "Number of seconds to wait before a loose floor falls.\n(default = 0.92)" ) \
+	_(BASE_SPEED, NUMBER(&custom_saved.base_speed, BYTE, 1, 127, NOMAP), ENABLED_IF(use_custom_options), \
+		"Base speed", "Game speed when not fighting (delay between frames in 1/60 seconds). Smaller is faster.\n(default = 5)" ) \
+	_(FIGHT_SPEED, NUMBER(&custom_saved.fight_speed, BYTE, 1, 127, NOMAP), ENABLED_IF(use_custom_options), \
+		"Fight speed", "Game speed when fighting (delay between frames in 1/60 seconds). Smaller is faster.\n(default = 6)" ) \
+	_(CHOMPER_SPEED, NUMBER(&custom_saved.chomper_speed, BYTE, 0, 127, NOMAP), ENABLED_IF(use_custom_options), \
+		"Chomper speed", "Chomper speed (length of the animation cycle in frames). Smaller is faster.\n(default = 15)" ) 
+
+#define LEVEL_SETTINGS(_) \
+	_(LEVEL_SETTINGS_ANOTHER, TEXT_ONLY, ENABLED_IF(use_custom_options), \
+		"Customize another level...", "Select another level to customize." ) \
+	_(LEVEL_TYPE, NUMBER(NULL /* level-dependent */, BYTE, 0, 1, MAP(level_type, NAMES, { "Dungeon", "Palace", })), ENABLED_IF(use_custom_options), \
+		"Level type", "Which environment is used in this level.\n" \
+		              "(either dungeon or palace)" ) \
+	_(LEVEL_COLOR, NUMBER(NULL /* level-dependent */, WORD, 0, 4, NOMAP), ENABLED_IF(use_custom_options), \
+		"Level color palette", "0: colors from VDUNGEON.DAT/VPALACE.DAT\n>0: colors from PRINCE.DAT.\n" \
+	                               "You need a PRINCE.DAT from PoP 1.3 or 1.4 for this." ) \
+	_(GUARD_TYPE, NUMBER(NULL /* level-dependent */, SHORT, -1, 4, MAP(guard_type, KEY_VALUE, {{"None", -1}, {"Normal", 0}, {"Fat", 1}, {"Skeleton", 2}, {"Vizier", 3}, {"Shadow", 4}})), ENABLED_IF(use_custom_options), \
+		"Guard type", "Guard type used in this level (normal, fat, skeleton, vizier, or shadow)." ) \
+	_(GUARD_HP, NUMBER(NULL /* level-dependent */, BYTE, 0, UINT8_MAX, NOMAP), ENABLED_IF(use_custom_options), \
+		"Guard hitpoints", "Number of hitpoints guards have in this level." ) \
+	_(CUTSCENE, NUMBER(NULL /* level-dependent */, BYTE, 0, 15, NOMAP), ENABLED_IF(use_custom_options), \
+		"Cutscene before level", "Cutscene that plays between the previous level and this level.\n" \
+		                         "0: none, 2 or 6: standing, 4: lying down, 8: mouse leaves,\n" \
+		                         "9: mouse returns, 12: standing or turn around" ) \
+	_(ENTRY_POSE, NUMBER(NULL /* level-dependent */, BYTE, 0, 2, MAP(entry_pose, NAMES, {"Turning", "Falling", "Running"})), ENABLED_IF(use_custom_options), \
+		"Entry pose", "The pose the kid has when the level starts.\n" ) \
+	_(SEAMLESS_EXIT, NUMBER(NULL /* level-dependent */, SBYTE, -1, 24, MAP(seamless_exit, KEY_VALUE, {{"Off", -1}})), ENABLED_IF(use_custom_options), \
+		"Seamless exit", "Entering this room moves the kid to the next level.\n" \
+		                 "Set to -1 to disable." )
+
+#define SETTING_LIST(_id, _style, _required, _text, _explanation) _style
+#define TOGGLE(...)
+#define TEXT_ONLY
+#define NUMBER(_linked, _type, _min, _max, _map) _map
+#define MAP(_name, _type, ...) _type##_LIST(_name##_setting_names, __VA_ARGS__);
+#define MAP_VAR(_var)
+GENERAL_SETTINGS(SETTING_LIST)
+VISUALS_SETTINGS(SETTING_LIST)
+GAMEPLAY_SETTINGS(SETTING_LIST)
+MODS_SETTINGS(SETTING_LIST)
+LEVEL_SETTINGS(SETTING_LIST)
+#undef  MAP_VAR
+#undef  MAP
+#undef  NUMBER
+#undef  TEXT_ONLY
+#undef  TOGGLE
+#undef  SETTING_LIST
+
 enum pause_menu_item_ids {
-	PAUSE_MENU_RESUME,
-	PAUSE_MENU_CHEATS,
-	PAUSE_MENU_SAVE_GAME,
-	PAUSE_MENU_LOAD_GAME,
-	PAUSE_MENU_RESTART_LEVEL,
-	PAUSE_MENU_SETTINGS,
-	PAUSE_MENU_RESTART_GAME,
-	PAUSE_MENU_QUIT_GAME,
-	SETTINGS_MENU_GENERAL,
-	SETTINGS_MENU_GAMEPLAY,
-	SETTINGS_MENU_VISUALS,
-	SETTINGS_MENU_MODS,
-	SETTINGS_MENU_LEVEL_CUSTOMIZATION,
-	SETTINGS_MENU_BACK,
+	#define MENU_ITEM_ID(_id, ...) PAUSE_MENU_##_id,
+	PAUSE_MENU_ITEMS(MENU_ITEM_ID)
+	#undef  MENU_ITEM_ID
+
+	#define MENU_ITEM_ID(_id, ...) SETTINGS_MENU_##_id,
+	SETTINGS_MENU_ITEMS(MENU_ITEM_ID)
+	#undef  MENU_ITEM_ID
 };
 
 pause_menu_item_type pause_menu_items[] = {
-		{.id = PAUSE_MENU_RESUME,        .text = "RESUME"},
-		// TODO: Add a cheats menu, where you can choose a cheat from a list?
-		/*{.id = PAUSE_MENU_CHEATS,        .text = "CHEATS", .required = &cheats_enabled},*/
-#ifdef USE_QUICKSAVE // TODO: If quicksave is disabled, show regular save/load instead?
-		{.id = PAUSE_MENU_SAVE_GAME,     .text = "QUICKSAVE"},
-		{.id = PAUSE_MENU_LOAD_GAME,     .text = "QUICKLOAD"},
-#endif
-		{.id = PAUSE_MENU_RESTART_LEVEL, .text = "RESTART LEVEL"},
-		{.id = PAUSE_MENU_SETTINGS,      .text = "SETTINGS"},
-		{.id = PAUSE_MENU_RESTART_GAME,  .text = "RESTART GAME"},
-		{.id = PAUSE_MENU_QUIT_GAME,     .text = "QUIT GAME"},
+	#define MENU_ITEM(_id, _text) { .id = PAUSE_MENU_##_id, .text = _text },
+	PAUSE_MENU_ITEMS(MENU_ITEM)
+	#undef  MENU_ITEM
+};
+
+pause_menu_item_type settings_menu_items[] = {
+	#define MENU_ITEM(_id, _text) { .id = SETTINGS_MENU_##_id, .text = _text },
+	SETTINGS_MENU_ITEMS(MENU_ITEM)
+	#undef  MENU_ITEM
 };
 
 int hovering_pause_menu_item = PAUSE_MENU_RESUME;
@@ -110,13 +514,6 @@ enum menu_dialog_ids {
 	DIALOG_SELECT_LEVEL,
 };
 
-pause_menu_item_type settings_menu_items[] = {
-		{.id = SETTINGS_MENU_GENERAL, .text = "GENERAL"},
-		{.id = SETTINGS_MENU_GAMEPLAY, .text = "GAMEPLAY"},
-		{.id = SETTINGS_MENU_VISUALS, .text = "VISUALS"},
-		{.id = SETTINGS_MENU_MODS, .text = "MODS"},
-		{.id = SETTINGS_MENU_BACK, .text = "BACK"},
-};
 int active_settings_subsection = 0;
 int highlighted_settings_subsection = 0;
 int scroll_position = 0;
@@ -139,160 +536,6 @@ enum menu_setting_number_type_ids {
 	SETTING_INT   = 5,
 };
 
-enum setting_ids {
-	SETTING_RESET_ALL_SETTINGS,
-	SETTING_SHOW_MENU_ON_PAUSE,
-	SETTING_ENABLE_INFO_SCREEN,
-	SETTING_ENABLE_SOUND,
-	SETTING_ENABLE_MUSIC,
-	SETTING_ENABLE_CONTROLLER_RUMBLE,
-	SETTING_JOYSTICK_THRESHOLD,
-	SETTING_JOYSTICK_ONLY_HORIZONTAL,
-	SETTING_FULLSCREEN,
-	SETTING_USE_CORRECT_ASPECT_RATIO,
-	SETTING_USE_INTEGER_SCALING,
-	SETTING_SCALING_TYPE,
-	SETTING_ENABLE_FADE,
-	SETTING_ENABLE_FLASH,
-	SETTING_ENABLE_LIGHTING,
-	SETTING_ENABLE_CHEATS,
-	SETTING_ENABLE_COPYPROT,
-	SETTING_ENABLE_QUICKSAVE,
-	SETTING_ENABLE_QUICKSAVE_PENALTY,
-	SETTING_ENABLE_REPLAY,
-	SETTING_USE_FIXES_AND_ENHANCEMENTS,
-	SETTING_ENABLE_CROUCH_AFTER_CLIMBING,
-	SETTING_ENABLE_FREEZE_TIME_DURING_END_MUSIC,
-	SETTING_ENABLE_REMEMBER_GUARD_HP,
-	SETTING_FIX_GATE_SOUNDS,
-	SETTING_TWO_COLL_BUG,
-	SETTING_FIX_INFINITE_DOWN_BUG,
-	SETTING_FIX_GATE_DRAWING_BUG,
-	SETTING_FIX_BIGPILLAR_CLIMB,
-	SETTING_FIX_JUMP_DISTANCE_AT_EDGE,
-	SETTING_FIX_EDGE_DISTANCE_CHECK_WHEN_CLIMBING,
-	SETTING_FIX_PAINLESS_FALL_ON_GUARD,
-	SETTING_FIX_WALL_BUMP_TRIGGERS_TILE_BELOW,
-	SETTING_FIX_STAND_ON_THIN_AIR,
-	SETTING_FIX_PRESS_THROUGH_CLOSED_GATES,
-	SETTING_FIX_GRAB_FALLING_SPEED,
-	SETTING_FIX_SKELETON_CHOMPER_BLOOD,
-	SETTING_FIX_MOVE_AFTER_DRINK,
-	SETTING_FIX_LOOSE_LEFT_OF_POTION,
-	SETTING_FIX_GUARD_FOLLOWING_THROUGH_CLOSED_GATES,
-	SETTING_FIX_SAFE_LANDING_ON_SPIKES,
-	SETTING_FIX_GLIDE_THROUGH_WALL,
-	SETTING_FIX_DROP_THROUGH_TAPESTRY,
-	SETTING_FIX_LAND_AGAINST_GATE_OR_TAPESTRY,
-	SETTING_FIX_UNINTENDED_SWORD_STRIKE,
-	SETTING_FIX_RETREAT_WITHOUT_LEAVING_ROOM,
-	SETTING_FIX_RUNNING_JUMP_THROUGH_TAPESTRY,
-	SETTING_FIX_PUSH_GUARD_INTO_WALL,
-	SETTING_FIX_JUMP_THROUGH_WALL_ABOVE_GATE,
-	SETTING_FIX_CHOMPERS_NOT_STARTING,
-	SETTING_FIX_FEATHER_INTERRUPTED_BY_LEVELDOOR,
-	SETTING_FIX_OFFSCREEN_GUARDS_DISAPPEARING,
-	SETTING_FIX_MOVE_AFTER_SHEATHE,
-	SETTING_FIX_HIDDEN_FLOORS_DURING_FLASHING,
-	SETTING_FIX_HANG_ON_TELEPORT,
-	SETTING_FIX_EXIT_DOOR,
-	SETTING_FIX_QUICKSAVE_DURING_FEATHER,
-	SETTING_FIX_CAPED_PRINCE_SLIDING_THROUGH_GATE,
-	SETTING_FIX_DOORTOP_DISABLING_GUARD,
-	SETTING_FIX_JUMPING_OVER_GUARD,
-	SETTING_FIX_DROP_2_ROOMS_CLIMBING_LOOSE_TILE,
-	SETTING_FIX_FALLING_THROUGH_FLOOR_DURING_SWORD_STRIKE,
-	SETTING_ENABLE_SUPER_HIGH_JUMP,
-	SETTING_USE_CUSTOM_OPTIONS,
-	SETTING_START_MINUTES_LEFT,
-	SETTING_START_TICKS_LEFT,
-	SETTING_START_HITP,
-	SETTING_MAX_HITP_ALLOWED,
-	SETTING_SAVING_ALLOWED_FIRST_LEVEL,
-	SETTING_SAVING_ALLOWED_LAST_LEVEL,
-	SETTING_START_UPSIDE_DOWN,
-	SETTING_START_IN_BLIND_MODE,
-	SETTING_COPYPROT_LEVEL,
-	SETTING_DRAWN_TILE_TOP_LEVEL_EDGE,
-	SETTING_DRAWN_TILE_LEFT_LEVEL_EDGE,
-	SETTING_LEVEL_EDGE_HIT_TILE,
-	SETTING_ALLOW_TRIGGERING_ANY_TILE,
-	SETTING_ENABLE_WDA_IN_PALACE,
-	SETTING_FIRST_LEVEL,
-	SETTING_SKIP_TITLE,
-	SETTING_SHIFT_L_ALLOWED_UNTIL_LEVEL,
-	SETTING_SHIFT_L_REDUCED_MINUTES,
-	SETTING_SHIFT_L_REDUCED_TICKS,
-	SETTING_DEMO_HITP,
-	SETTING_DEMO_END_ROOM,
-	SETTING_INTRO_MUSIC_LEVEL,
-	SETTING_HAVE_SWORD_FROM_LEVEL,
-	SETTING_CHECKPOINT_LEVEL,
-	SETTING_CHECKPOINT_RESPAWN_DIR,
-	SETTING_CHECKPOINT_RESPAWN_ROOM,
-	SETTING_CHECKPOINT_RESPAWN_TILEPOS,
-	SETTING_CHECKPOINT_CLEAR_TILE_ROOM,
-	SETTING_CHECKPOINT_CLEAR_TILE_COL,
-	SETTING_CHECKPOINT_CLEAR_TILE_ROW,
-	SETTING_SKELETON_LEVEL,
-	SETTING_SKELETON_ROOM,
-	SETTING_SKELETON_TRIGGER_COLUMN_1,
-	SETTING_SKELETON_TRIGGER_COLUMN_2,
-	SETTING_SKELETON_COLUMN,
-	SETTING_SKELETON_ROW,
-	SETTING_SKELETON_REQUIRE_OPEN_LEVEL_DOOR,
-	SETTING_SKELETON_SKILL,
-	SETTING_SKELETON_REAPPEAR_ROOM,
-	SETTING_SKELETON_REAPPEAR_X,
-	SETTING_SKELETON_REAPPEAR_ROW,
-	SETTING_SKELETON_REAPPEAR_DIR,
-	SETTING_MIRROR_LEVEL,
-	SETTING_MIRROR_ROOM,
-	SETTING_MIRROR_COLUMN,
-	SETTING_MIRROR_ROW,
-	SETTING_MIRROR_TILE,
-	SETTING_SHOW_MIRROR_IMAGE,
-
-	SETTING_SHADOW_STEAL_LEVEL,
-	SETTING_SHADOW_STEAL_ROOM,
-	SETTING_SHADOW_STEP_LEVEL,
-	SETTING_SHADOW_STEP_ROOM,
-
-	SETTING_FALLING_EXIT_LEVEL,
-	SETTING_FALLING_EXIT_ROOM,
-	SETTING_FALLING_ENTRY_LEVEL,
-	SETTING_FALLING_ENTRY_ROOM,
-	SETTING_MOUSE_LEVEL,
-	SETTING_MOUSE_ROOM,
-	SETTING_MOUSE_DELAY,
-	SETTING_MOUSE_OBJECT,
-	SETTING_MOUSE_START_X,
-	SETTING_LOOSE_TILES_LEVEL,
-	SETTING_LOOSE_TILES_ROOM_1,
-	SETTING_LOOSE_TILES_ROOM_2,
-	SETTING_LOOSE_TILES_FIRST_TILE,
-	SETTING_LOOSE_TILES_LAST_TILE,
-	SETTING_JAFFAR_VICTORY_LEVEL,
-	SETTING_JAFFAR_VICTORY_FLASH_TIME,
-	SETTING_HIDE_LEVEL_NUMBER_FIRST_LEVEL,
-	SETTING_LEVEL_13_LEVEL_NUMBER,
-	SETTING_VICTORY_STOPS_TIME_LEVEL,
-	SETTING_WIN_LEVEL,
-	SETTING_WIN_ROOM,
-	SETTING_LOOSE_FLOOR_DELAY,
-	SETTING_BASE_SPEED,
-	SETTING_FIGHT_SPEED,
-	SETTING_CHOMPER_SPEED,
-	SETTING_LEVEL_SETTINGS,
-	SETTING_LEVEL_TYPE,
-	SETTING_LEVEL_COLOR,
-	SETTING_GUARD_TYPE,
-	SETTING_GUARD_HP,
-	SETTING_CUTSCENE,
-	SETTING_ENTRY_POSE,
-	SETTING_SEAMLESS_EXIT,
-};
-
 typedef struct setting_type {
 	int index;
 	int id;
@@ -307,289 +550,45 @@ typedef struct setting_type {
 	names_list_type* names_list;
 } setting_type;
 
-setting_type general_settings[] = {
-		{.id = SETTING_SHOW_MENU_ON_PAUSE, .style = SETTING_STYLE_TOGGLE, .linked = &enable_pause_menu,
-				.text = "Enable pause menu",
-				.explanation = "Show the in-game menu when you pause the game.\n"
-						"If disabled, you can still bring up the menu by pressing Backspace."},
-		{.id = SETTING_ENABLE_INFO_SCREEN, .style = SETTING_STYLE_TOGGLE, .linked = &enable_info_screen,
-				.text = "Display info screen on launch",
-				.explanation = "Display the SDLPoP information screen when the game starts."},
-		{.id = SETTING_ENABLE_SOUND, .style = SETTING_STYLE_TOGGLE, .linked = &is_sound_on,
-				.text = "Enable sound",
-				.explanation = "Turn sound on or off."},
-		{.id = SETTING_ENABLE_MUSIC, .style = SETTING_STYLE_TOGGLE, .linked = &enable_music,
-				.text = "Enable music",
-				.explanation = "Turn music on or off."},
-		{.id = SETTING_ENABLE_CONTROLLER_RUMBLE, .style = SETTING_STYLE_TOGGLE, .linked = &enable_controller_rumble,
-				.text = "Enable controller rumble",
-				.explanation = "If using a controller with a rumble motor, provide haptic feedback when the kid is hurt."},
-		{.id = SETTING_JOYSTICK_THRESHOLD, .style = SETTING_STYLE_NUMBER, .number_type = SETTING_INT,
-				.linked = &joystick_threshold, .min = 0, .max = INT16_MAX,
-				.text = "Joystick threshold",
-				.explanation = "Joystick 'dead zone' sensitivity threshold."},
-		{.id = SETTING_JOYSTICK_ONLY_HORIZONTAL, .style = SETTING_STYLE_TOGGLE, .linked = &joystick_only_horizontal,
-				.text = "Horizontal joystick movement only",
-				.explanation = "Use joysticks for horizontal movement only, not all-directional. "
-						"This may make the game easier to control for some controllers."},
-		{.id = SETTING_RESET_ALL_SETTINGS, .style = SETTING_STYLE_TEXT_ONLY,
-				.text = "Restore defaults...", .explanation = "Revert all settings to the default state."},
+enum setting_ids {
+	#define SETTING_ID(_id, ...) SETTING_##_id,
+	GENERAL_SETTINGS(SETTING_ID)
+	VISUALS_SETTINGS(SETTING_ID)
+	GAMEPLAY_SETTINGS(SETTING_ID)
+	MODS_SETTINGS(SETTING_ID)
+	LEVEL_SETTINGS(SETTING_ID)
+	#undef  SETTING_ID
 };
 
-NAMES_LIST(scaling_type_setting_names, {"Sharp", "Fuzzy", "Blurry",});
+#define TEXT_ONLY                                                   .style = SETTING_STYLE_TEXT_ONLY,
+#define TOGGLE(_linked)                          .linked = _linked, .style = SETTING_STYLE_TOGGLE,
+#define NUMBER(_linked, _type, _min, _max, _map) .linked = _linked, .style = SETTING_STYLE_NUMBER, .number_type = SETTING_##_type, .min = _min, .max = _max, _map
+#define MAP(_var, ...)                           .names_list = GETADDRESS(_var##_setting_names_list),
+#define MAP_VAR(_var)                            .names_list = GETADDRESS(_var),
+#define ENABLED_IF(_var)                            .required = GETADDRESS(_var),
+#define GETADDRESS(_name)                        &_name
 
-int integer_scaling_possible =
-#if SDL_VERSION_ATLEAST(2,0,5) // SDL_RenderSetIntegerScale
-	1
-#else
-	0
-#endif
-;
+setting_type general_settings[] = {
+	#define SETTING(_id, _style, _required, _text, _explanation) { .id = SETTING_##_id, .text = _text, .explanation = _explanation, _style _required },
+	GENERAL_SETTINGS(SETTING)
+	#undef  SETTING
+};
 
 setting_type visuals_settings[] = {
-		{.id = SETTING_FULLSCREEN, .style = SETTING_STYLE_TOGGLE, .linked = &start_fullscreen,
-				.text = "Start fullscreen",
-				.explanation = "Start the game in fullscreen mode.\nYou can also toggle fullscreen by pressing Alt+Enter."},
-		{.id = SETTING_USE_CORRECT_ASPECT_RATIO, .style = SETTING_STYLE_TOGGLE, .linked = &use_correct_aspect_ratio,
-				.text = "Use 4:3 aspect ratio",
-				.explanation = "Render the game in the originally intended 4:3 aspect ratio."
-				               "\nNB. Works best using a high resolution."},
-		{.id = SETTING_USE_INTEGER_SCALING, .style = SETTING_STYLE_TOGGLE, .linked = &use_integer_scaling,
-				.required = &integer_scaling_possible,
-				.text = "Use integer scaling",
-				.explanation = "Enable pixel perfect scaling. That is, make all pixels the same size by forcing integer scale factors.\n"
-						"Combining with 4:3 aspect ratio requires at least 1600x1200."
-						"\nYou need to compile with SDL 2.0.5 or newer to enable this."},
-		{.id = SETTING_SCALING_TYPE, .style = SETTING_STYLE_NUMBER, .number_type = SETTING_BYTE, .max = 2,
-				.linked = &scaling_type, .names_list = &scaling_type_setting_names_list,
-				.text = "Scaling method",
-				.explanation = "Sharp - Use nearest neighbour resampling.\n"
-						"Fuzzy - First upscale to double size, then use smooth scaling.\n"
-						"Blurry - Use smooth scaling."},
-#ifdef USE_FADE
-		{.id = SETTING_ENABLE_FADE, .style = SETTING_STYLE_TOGGLE, .linked = &enable_fade,
-				.text = "Fading enabled",
-				.explanation = "Turn fading on or off."},
-#endif
-#ifdef USE_FLASH
-		{.id = SETTING_ENABLE_FLASH, .style = SETTING_STYLE_TOGGLE, .linked = &enable_flash,
-				.text = "Flashing enabled",
-				.explanation = "Turn flashing on or off."},
-#endif
-#ifdef USE_LIGHTING
-		{.id = SETTING_ENABLE_LIGHTING, .style = SETTING_STYLE_TOGGLE, .linked = &enable_lighting,
-				.text = "Torch shadows enabled",
-				.explanation = "Darken those parts of the screen which are not near a torch."},
-#endif
+	#define SETTING(_id, _style, _required, _text, _explanation) { .id = SETTING_##_id, .text = _text, .explanation = _explanation, _style _required },
+	VISUALS_SETTINGS(SETTING)
+	#undef  SETTING
 };
 
 setting_type gameplay_settings[] = {
-		{.id = SETTING_ENABLE_CHEATS, .style = SETTING_STYLE_TOGGLE, .linked = &cheats_enabled,
-				.text = "Enable cheats",
-				.explanation = "Turn cheats on or off."/*"\nAlso, display the CHEATS option on the pause menu."*/},
-#ifdef USE_COPYPROT
-		{.id = SETTING_ENABLE_COPYPROT, .style = SETTING_STYLE_TOGGLE, .linked = &enable_copyprot,
-				.text = "Enable copy protection level",
-				.explanation = "Enable or disable the potions (copy protection) level."},
-#endif
-#ifdef USE_QUICKSAVE
-		{.id = SETTING_ENABLE_QUICKSAVE, .style = SETTING_STYLE_TOGGLE, .linked = &enable_quicksave,
-				.text = "Enable quicksave",
-				.explanation = "Enable quicksave/load feature.\nPress F6 to quicksave, F9 to quickload."},
-		{.id = SETTING_ENABLE_QUICKSAVE_PENALTY, .style = SETTING_STYLE_TOGGLE, .linked = &enable_quicksave_penalty,
-				.text = "Quicksave time penalty",
-				.explanation = "Try to let time run out when quickloading (similar to dying).\n"
-						"Actually, the 'remaining time' will still be restored, "
-						"but a penalty (up to one minute) will be applied."},
-#endif
-#ifdef USE_REPLAY
-		{.id = SETTING_ENABLE_REPLAY, .style = SETTING_STYLE_TOGGLE, .linked = &enable_replay,
-				.text = "Enable replays",
-				.explanation = "Enable recording/replay feature.\n"
-						"Press Ctrl+Tab in-game to start recording.\n"
-						"To stop, press Ctrl+Tab again."},
-#endif
-		{.id = SETTING_USE_FIXES_AND_ENHANCEMENTS, .style = SETTING_STYLE_TOGGLE, .linked = &use_fixes_and_enhancements,
-				.text = "Enhanced mode (allow bug fixes)",
-				.explanation = "Turn on game fixes and enhancements.\n"
-						"Below, you can turn individual fixes/enhancements on or off.\n"
-						"NOTE: Some fixes disable 'tricks' that depend on game quirks."},
-		{.id = SETTING_ENABLE_CROUCH_AFTER_CLIMBING, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.enable_crouch_after_climbing, .required = &use_fixes_and_enhancements,
-				.text = "Enable crouching after climbing",
-				.explanation = "Adds a way to crouch immediately after climbing up: press down and forward simultaneously. "
-						"In the original game, this could not be done (pressing down always causes the kid to climb down)."},
-		{.id = SETTING_ENABLE_FREEZE_TIME_DURING_END_MUSIC, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.enable_freeze_time_during_end_music, .required = &use_fixes_and_enhancements,
-				.text = "Freeze time during level end music",
-				.explanation = "Time runs out while the level ending music plays; however, the music can be skipped by disabling sound. "
-						"This option stops time while the ending music is playing (so there is no need to disable sound)."},
-		{.id = SETTING_ENABLE_REMEMBER_GUARD_HP, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.enable_remember_guard_hp, .required = &use_fixes_and_enhancements,
-				.text = "Remember guard hitpoints",
-				.explanation = "Enable guard hitpoints not resetting to their default (maximum) value when re-entering the room."},
-		{.id = SETTING_ENABLE_SUPER_HIGH_JUMP, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.enable_super_high_jump, .required = &use_fixes_and_enhancements,
-				.text = "Enable super high jump",
-				.explanation = "Prince in feather mode (after drinking a green potion) can jump 2 stories high."},
-		{.id = SETTING_FIX_GATE_SOUNDS, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_gate_sounds, .required = &use_fixes_and_enhancements,
-				.text = "Fix gate sounds bug",
-				.explanation = "If a room is linked to itself on the left, the closing sounds of the gates in that room can't be heard."},
-		{.id = SETTING_TWO_COLL_BUG, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_two_coll_bug, .required = &use_fixes_and_enhancements,
-				.text = "Fix two collisions bug",
-				.explanation = "An open gate or chomper may enable the Kid to go through walls. (Trick 7, 37, 62)"},
-		{.id = SETTING_FIX_INFINITE_DOWN_BUG, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_infinite_down_bug, .required = &use_fixes_and_enhancements,
-				.text = "Fix infinite down bug",
-				.explanation = "If a room is linked to itself at the bottom, and the Kid's column has no floors, the game hangs."},
-		{.id = SETTING_FIX_GATE_DRAWING_BUG, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_gate_drawing_bug, .required = &use_fixes_and_enhancements,
-				.text = "Fix gate drawing bug",
-				.explanation = "When a gate is under another gate, the top of the bottom gate is not visible."},
-		{.id = SETTING_FIX_BIGPILLAR_CLIMB, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_bigpillar_climb, .required = &use_fixes_and_enhancements,
-				.text = "Fix big pillar climbing bug",
-				.explanation = "When climbing up to a floor with a big pillar top behind, turned right, Kid sees through floor."},
-		{.id = SETTING_FIX_JUMP_DISTANCE_AT_EDGE, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_jump_distance_at_edge, .required = &use_fixes_and_enhancements,
-				.text = "Fix jump distance at edge",
-				.explanation = "When climbing up two floors, turning around and jumping upward, the kid falls down. "
-						"This fix makes the workaround of Trick 25 unnecessary."},
-		{.id = SETTING_FIX_EDGE_DISTANCE_CHECK_WHEN_CLIMBING, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_edge_distance_check_when_climbing, .required = &use_fixes_and_enhancements,
-				.text = "Fix edge distance check when climbing",
-				.explanation = "When climbing to a higher floor, the game unnecessarily checks how far away the edge below is. "
-						"Sometimes you will \"teleport\" some distance when climbing from firm ground."},
-		{.id = SETTING_FIX_PAINLESS_FALL_ON_GUARD, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_painless_fall_on_guard, .required = &use_fixes_and_enhancements,
-				.text = "Fix painless fall on guard",
-				.explanation = "Falling from a great height directly on top of guards does not hurt."},
-		{.id = SETTING_FIX_WALL_BUMP_TRIGGERS_TILE_BELOW, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_wall_bump_triggers_tile_below, .required = &use_fixes_and_enhancements,
-				.text = "Fix wall bump triggering tile below",
-				.explanation = "Bumping against a wall may cause a loose floor below to drop, even though it has not been touched. (Trick 18, 34)"},
-		{.id = SETTING_FIX_STAND_ON_THIN_AIR, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_stand_on_thin_air, .required = &use_fixes_and_enhancements,
-				.text = "Fix standing on thin air",
-				.explanation = "When pressing a loose tile, you can temporarily stand on thin air by standing up from crouching."},
-		{.id = SETTING_FIX_PRESS_THROUGH_CLOSED_GATES, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_press_through_closed_gates, .required = &use_fixes_and_enhancements,
-				.text = "Fix pressing through closed gates",
-				.explanation = "Buttons directly to the right of gates can be pressed even though the gate is closed (Trick 1)"},
-		{.id = SETTING_FIX_GRAB_FALLING_SPEED, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_grab_falling_speed, .required = &use_fixes_and_enhancements,
-				.text = "Fix grab falling speed",
-				.explanation = "By jumping and bumping into a wall, you can sometimes grab a ledge two stories down (which should not be possible)."},
-		{.id = SETTING_FIX_SKELETON_CHOMPER_BLOOD, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_skeleton_chomper_blood, .required = &use_fixes_and_enhancements,
-				.text = "Fix skeleton chomper blood",
-				.explanation = "When chomped, skeletons cause the chomper to become bloody even though skeletons do not have blood."},
-		{.id = SETTING_FIX_MOVE_AFTER_DRINK, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_move_after_drink, .required = &use_fixes_and_enhancements,
-				.text = "Fix movement after drinking",
-				.explanation = "Controls do not get released properly when drinking a potion, sometimes causing unintended movements."},
-		{.id = SETTING_FIX_LOOSE_LEFT_OF_POTION, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_loose_left_of_potion, .required = &use_fixes_and_enhancements,
-				.text = "Fix loose floor left of potion",
-				.explanation = "A drawing bug occurs when a loose tile is placed to the left of a potion (or sword)."},
-		{.id = SETTING_FIX_GUARD_FOLLOWING_THROUGH_CLOSED_GATES, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_guard_following_through_closed_gates, .required = &use_fixes_and_enhancements,
-				.text = "Fix guards passing closed gates",
-				.explanation = "Guards may \"follow\" the kid to the room on the left or right, even though there is a closed gate in between."},
-		{.id = SETTING_FIX_SAFE_LANDING_ON_SPIKES, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_safe_landing_on_spikes, .required = &use_fixes_and_enhancements,
-				.text = "Fix safe landing on spikes",
-				.explanation = "When landing on the edge of a spikes tile, it is considered safe. (Trick 65)"},
-		{.id = SETTING_FIX_GLIDE_THROUGH_WALL, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_glide_through_wall, .required = &use_fixes_and_enhancements,
-				.text = "Fix gliding through walls",
-				.explanation = "The kid may glide through walls after turning around while running (especially when weightless)."},
-		{.id = SETTING_FIX_DROP_THROUGH_TAPESTRY, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_drop_through_tapestry, .required = &use_fixes_and_enhancements,
-				.text = "Fix dropping through tapestries",
-				.explanation = "The kid can drop down through a closed gate, when there is a tapestry (doortop) above the gate."},
-		{.id = SETTING_FIX_LAND_AGAINST_GATE_OR_TAPESTRY, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_land_against_gate_or_tapestry, .required = &use_fixes_and_enhancements,
-				.text = "Fix land against gate or tapestry",
-				.explanation = "When dropping down and landing right in front of a wall, the entire landing animation should normally play. "
-						"However, when falling against a closed gate or a tapestry(+floor) tile, the animation aborts."},
-		{.id = SETTING_FIX_UNINTENDED_SWORD_STRIKE, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_unintended_sword_strike, .required = &use_fixes_and_enhancements,
-				.text = "Fix unintended sword strike",
-				.explanation = "Sometimes, the kid may automatically strike immediately after drawing the sword. "
-						"This especially happens when dropping down from a higher floor and then turning towards the opponent."},
-		{.id = SETTING_FIX_RETREAT_WITHOUT_LEAVING_ROOM, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_retreat_without_leaving_room, .required = &use_fixes_and_enhancements,
-				.text = "Fix retreat without leaving room",
-				.explanation = "By repeatedly pressing 'back' in a swordfight, you can retreat out of a room without the room changing. (Trick 35)"},
-		{.id = SETTING_FIX_RUNNING_JUMP_THROUGH_TAPESTRY, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_running_jump_through_tapestry, .required = &use_fixes_and_enhancements,
-				.text = "Fix running jumps through tapestries",
-				.explanation = "The kid can jump through a tapestry with a running jump to the left, if there is a floor above it."},
-		{.id = SETTING_FIX_PUSH_GUARD_INTO_WALL, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_push_guard_into_wall, .required = &use_fixes_and_enhancements,
-				.text = "Fix pushing guards into walls",
-				.explanation = "Guards can be pushed into walls, because the game does not correctly check for walls located behind a guard."},
-		{.id = SETTING_FIX_JUMP_THROUGH_WALL_ABOVE_GATE, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_jump_through_wall_above_gate, .required = &use_fixes_and_enhancements,
-				.text = "Fix jump through wall above gate",
-				.explanation = "By doing a running jump into a wall, you can fall behind a closed gate two floors down. (e.g. skip in Level 7)"},
-		{.id = SETTING_FIX_CHOMPERS_NOT_STARTING, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_chompers_not_starting, .required = &use_fixes_and_enhancements,
-				.text = "Fix chompers not starting",
-				.explanation = "If you grab a ledge that is one or more floors down, the chompers on that row will not start."},
-		{.id = SETTING_FIX_FEATHER_INTERRUPTED_BY_LEVELDOOR, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_feather_interrupted_by_leveldoor, .required = &use_fixes_and_enhancements,
-				.text = "Fix leveldoor interrupting feather fall",
-				.explanation = "As soon as a level door has completely opened, the feather fall effect is interrupted because the sound stops."},
-		{.id = SETTING_FIX_OFFSCREEN_GUARDS_DISAPPEARING, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_offscreen_guards_disappearing, .required = &use_fixes_and_enhancements,
-				.text = "Fix offscreen guards disappearing",
-				.explanation = "Guards will often not reappear in another room if they have been pushed (partly or entirely) offscreen."},
-		{.id = SETTING_FIX_MOVE_AFTER_SHEATHE, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_move_after_sheathe, .required = &use_fixes_and_enhancements,
-				.text = "Fix movement after sheathing",
-				.explanation = "While putting the sword away, if you press forward and down, and then release down, the kid will still duck."},
-		{.id = SETTING_FIX_HIDDEN_FLOORS_DURING_FLASHING, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_hidden_floors_during_flashing, .required = &use_fixes_and_enhancements,
-				.text = "Fix hidden floors during flashing",
-				.explanation = "After uniting with the shadow in level 12, the hidden floors will not appear until after the flashing stops."},
-		{.id = SETTING_FIX_HANG_ON_TELEPORT, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_hang_on_teleport, .required = &use_fixes_and_enhancements,
-				.text = "Fix hang on teleport bug",
-				.explanation = "By jumping towards one of the bottom corners of the room and grabbing a ledge, you can teleport to the room above."},
-		{.id = SETTING_FIX_EXIT_DOOR, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_exit_door, .required = &use_fixes_and_enhancements,
-				.text = "Fix exit doors",
-				.explanation = "You can enter closed exit doors after you met the shadow or Jaffar died, or after you opened one of multiple exits."},
-		{.id = SETTING_FIX_QUICKSAVE_DURING_FEATHER, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_quicksave_during_feather, .required = &use_fixes_and_enhancements,
-				.text = "Fix quick save in feather mode",
-				.explanation = "You cannot save game while floating in feather mode."},
-		{.id = SETTING_FIX_CAPED_PRINCE_SLIDING_THROUGH_GATE, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_caped_prince_sliding_through_gate, .required = &use_fixes_and_enhancements,
-				.text = "Fix sliding through closed gate",
-				.explanation = "If you are using the caped prince graphics, and crouch with your back towards a closed gate on the left edge on the room, then the prince will slide through the gate."},
-		{.id = SETTING_FIX_DOORTOP_DISABLING_GUARD, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_doortop_disabling_guard, .required = &use_fixes_and_enhancements,
-				.text = "Fix door top disabling guard",
-				.explanation = "Guards become inactive if they are standing on a door top (with floor), or if the prince is standing on a door top."},
-		{.id = SETTING_FIX_JUMPING_OVER_GUARD, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_jumping_over_guard, .required = &use_fixes_and_enhancements,
-				.text = "Fix jumping over guard",
-				.explanation = "Prince can jump over guards with a properly timed running jump."},
-		{.id = SETTING_FIX_DROP_2_ROOMS_CLIMBING_LOOSE_TILE, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_drop_2_rooms_climbing_loose_tile, .required = &use_fixes_and_enhancements,
-				.text = "Fix dropping 2 rooms with loose tile",
-				.explanation = "Prince can fall 2 rooms down while climbing a loose tile in a room above. (Trick 153)"},
-		{.id = SETTING_FIX_FALLING_THROUGH_FLOOR_DURING_SWORD_STRIKE, .style = SETTING_STYLE_TOGGLE,
-				.linked = &fixes_saved.fix_falling_through_floor_during_sword_strike, .required = &use_fixes_and_enhancements,
-				.text = "Fix dropping through floor striking",
-				.explanation = "Prince or guard can fall through the floor during a sword strike sequence."},
+	#define SETTING(_id, _style, _required, _text, _explanation) { .id = SETTING_##_id, .text = _text, .explanation = _explanation, _style _required },
+	GAMEPLAY_SETTINGS(SETTING)
+	#undef  SETTING
 };
 
+NAMES_LIST(row_setting_names, {"Top", "Middle", "Bottom"});
+KEY_VALUE_LIST(direction_setting_names, {{"Left", dir_FF_left}, {"Right", dir_0_right}});
+extern names_list_type never_is_16_list;
 NAMES_LIST(tile_type_setting_names, {
 		"Empty", "Floor", "Spikes", "Pillar", "Gate",                                                    // 0..4
 		"Stuck button", "Closer button", "Tapestry/floor", "Big pillar: bottom", "Big pillar: top",      // 5..9
@@ -599,388 +598,16 @@ NAMES_LIST(tile_type_setting_names, {
 		"Lattice: pillar", "Lattice: down", "Lattice: small", "Lattice: left", "Lattice: right",         // 25..29
 		"Torch/debris", "Tile 31 (unused)" // 30
 });
-NAMES_LIST(row_setting_names, {"Top", "Middle", "Bottom"});
-KEY_VALUE_LIST(direction_setting_names, {{"Left", dir_FF_left}, {"Right", dir_0_right}});
-extern names_list_type never_is_16_list;
-
 setting_type mods_settings[] = {
-		{.id = SETTING_USE_CUSTOM_OPTIONS, .style = SETTING_STYLE_TOGGLE, .linked = &use_custom_options,
-				.text = "Use customization options",
-				.explanation = "Turn customization options on or off.\n(default = OFF)"},
-		{.id = SETTING_LEVEL_SETTINGS, .style = SETTING_STYLE_TEXT_ONLY, .required = &use_custom_options,
-				.text = "Customize level...",
-				.explanation = "Change level-specific options (such as level type, guard type, number of guard hitpoints)."},
-		{.id = SETTING_START_MINUTES_LEFT, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.start_minutes_left, .number_type = SETTING_SHORT, .min = -1, .max = INT16_MAX,
-				.text = "Starting minutes left",
-				.explanation = "Starting minutes left. (default = 60)\n"
-						"To disable the time limit completely, set this to -1."},
-		{.id = SETTING_START_TICKS_LEFT, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.start_ticks_left, .number_type = SETTING_WORD, .max = UINT16_MAX,
-				.text = "Starting seconds left",
-				.explanation = "Starting number of seconds left in the first minute.\n(default = 59.92)"},
-		{.id = SETTING_START_HITP, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.start_hitp, .number_type = SETTING_WORD, .max = UINT16_MAX,
-				.text = "Starting hitpoints",
-				.explanation = "Starting hitpoints. (default = 3)"},
-		{.id = SETTING_MAX_HITP_ALLOWED, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.max_hitp_allowed, .number_type = SETTING_WORD, .max = UINT16_MAX,
-				.text = "Max hitpoints allowed",
-				.explanation = "Maximum number of hitpoints you can get. (default = 10)"},
-		{.id = SETTING_SAVING_ALLOWED_FIRST_LEVEL, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.saving_allowed_first_level, .number_type = SETTING_WORD, .max = 16, .names_list = &never_is_16_list,
-				.text = "Saving allowed: first level",
-				.explanation = "First level where you can save the game. (default = 3)"},
-		{.id = SETTING_SAVING_ALLOWED_LAST_LEVEL, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.saving_allowed_last_level, .number_type = SETTING_WORD, .max = 16, .names_list = &never_is_16_list,
-				.text = "Saving allowed: last level",
-				.explanation = "Last level where you can save the game. (default = 13)"},
-		{.id = SETTING_START_UPSIDE_DOWN, .style = SETTING_STYLE_TOGGLE, .required = &use_custom_options,
-				.linked = &custom_saved.start_upside_down,
-				.text = "Start with the screen flipped",
-				.explanation = "Start the game with the screen flipped upside down, similar to Shift+I (default = OFF)"},
-		{.id = SETTING_START_IN_BLIND_MODE, .style = SETTING_STYLE_TOGGLE, .required = &use_custom_options,
-				.linked = &custom_saved.start_in_blind_mode,
-				.text = "Start in blind mode",
-				.explanation = "Start in blind mode, similar to Shift+B (default = OFF)"},
-		{.id = SETTING_COPYPROT_LEVEL, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.copyprot_level, .number_type = SETTING_WORD, .max = 16, .names_list = &never_is_16_list,
-				.text = "Copy protection before level",
-				.explanation = "The potions level will appear before this level. (default = 2)"},
-		{.id = SETTING_DRAWN_TILE_TOP_LEVEL_EDGE, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.names_list = &tile_type_setting_names_list,
-				.linked = &custom_saved.drawn_tile_top_level_edge, .number_type = SETTING_BYTE, .max = 31,
-				.text = "Drawn tile: top level edge",
-				.explanation = "Tile drawn at the top of the room if there is no room that way. (default = floor)"},
-		{.id = SETTING_DRAWN_TILE_LEFT_LEVEL_EDGE, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.names_list = &tile_type_setting_names_list,
-				.linked = &custom_saved.drawn_tile_left_level_edge, .number_type = SETTING_BYTE, .max = 31,
-				.text = "Drawn tile: left level edge",
-				.explanation = "Tile drawn at the left of the room if there is no room that way. (default = wall)"},
-		{.id = SETTING_LEVEL_EDGE_HIT_TILE, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.names_list = &tile_type_setting_names_list,
-				.linked = &custom_saved.level_edge_hit_tile, .number_type = SETTING_BYTE, .max = 31,
-				.text = "Level edge hit tile",
-				.explanation = "Tile behavior at the top or left of the room if there is no room that way (default = wall)"},
-		{.id = SETTING_ALLOW_TRIGGERING_ANY_TILE, .style = SETTING_STYLE_TOGGLE, .required = &use_custom_options,
-				.linked = &custom_saved.allow_triggering_any_tile,
-				.text = "Allow triggering any tile",
-				.explanation = "Enable triggering any tile. For example a button could make loose floors fall, or start a stuck chomper. (default = OFF)"},
-		{.id = SETTING_ENABLE_WDA_IN_PALACE, .style = SETTING_STYLE_TOGGLE, .required = &use_custom_options,
-				.linked = &custom_saved.enable_wda_in_palace,
-				.text = "Enable WDA in palace",
-				.explanation = "Enable the dungeon wall drawing algorithm in the palace."
-						"\nN.B. Use with a modified VPALACE.DAT that provides dungeon-like wall graphics! (default = OFF)"},
-		{.id = SETTING_FIRST_LEVEL, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.first_level, .number_type = SETTING_WORD, .max = 15,
-				.text = "First level",
-				.explanation = "Level that will be loaded when starting a new game."
-						"\n(default = 1)"},
-		{.id = SETTING_SKIP_TITLE, .style = SETTING_STYLE_TOGGLE, .required = &use_custom_options,
-				.linked = &custom_saved.skip_title,
-				.text = "Skip title sequence",
-				.explanation = "Always skip the title sequence: the first level will be loaded immediately."
-						"\n(default = OFF)"},
-		{.id = SETTING_SHIFT_L_ALLOWED_UNTIL_LEVEL, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.shift_L_allowed_until_level, .number_type = SETTING_WORD, .max = 16, .names_list = &never_is_16_list,
-				.text = "Shift+L allowed until level",
-				.explanation = "First level where level skipping with Shift+L is denied in non-cheat mode.\n"
-						"(default = 4)"},
-		{.id = SETTING_SHIFT_L_REDUCED_MINUTES, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.shift_L_reduced_minutes, .number_type = SETTING_WORD, .max = UINT16_MAX,
-				.text = "Minutes left after Shift+L used",
-				.explanation = "Number of minutes left after Shift+L is used in non-cheat mode.\n"
-						"(default = 15)"},
-		{.id = SETTING_SHIFT_L_REDUCED_TICKS, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.shift_L_reduced_ticks, .number_type = SETTING_WORD, .max = UINT16_MAX,
-				.text = "Seconds left after Shift+L used",
-				.explanation = "Number of seconds left after Shift+L is used in non-cheat mode.\n(default = 59.92)"},
-		{.id = SETTING_DEMO_HITP, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.demo_hitp, .number_type = SETTING_WORD, .max = UINT16_MAX,
-				.text = "Demo level hitpoints",
-				.explanation = "Hitpoints the kid has on the demo level.\n(default = 4)"},
-		{.id = SETTING_DEMO_END_ROOM, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.demo_end_room, .number_type = SETTING_WORD, .min = 1, .max = 24,
-				.text = "Demo level ending room",
-				.explanation = "Demo level ending room.\n(default = 24)"},
-		{.id = SETTING_INTRO_MUSIC_LEVEL, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.intro_music_level, .number_type = SETTING_WORD, .max = 16, .names_list = &never_is_16_list,
-				.text = "Level with intro music",
-				.explanation = "Level where the presentation music is played when the kid crouches down. (default = 1)\n"
-						"Note: only works if this level is the starting level."},
-		{.id = SETTING_HAVE_SWORD_FROM_LEVEL, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.have_sword_from_level, .number_type = SETTING_WORD, .min = 1, .max = 16, .names_list = &never_is_16_list,
-				.text = "Have sword from level",
-				.explanation = "First level (except the demo level) where kid has the sword.\n(default = 2)\n"},
-		{.id = SETTING_CHECKPOINT_LEVEL, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.checkpoint_level, .number_type = SETTING_WORD, .max = 16, .names_list = &never_is_16_list,
-				.text = "Checkpoint level",
-				.explanation = "Level where there is a checkpoint. (default = 3)\n"
-						"The checkpoint is triggered when leaving room 7 to the left."},
-		{.id = SETTING_CHECKPOINT_RESPAWN_DIR, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.checkpoint_respawn_dir, .number_type = SETTING_SBYTE, .min = -1, .max = 0, .names_list = &direction_setting_names_list,
-				.text = "Checkpoint respawn direction",
-				.explanation = "Respawn direction after triggering the checkpoint.\n(default = left)"},
-		{.id = SETTING_CHECKPOINT_RESPAWN_ROOM, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.checkpoint_respawn_room, .number_type = SETTING_BYTE, .min = 1, .max = 24,
-				.text = "Checkpoint respawn room",
-				.explanation = "Room where you respawn after triggering the checkpoint.\n(default = 2)"},
-		{.id = SETTING_CHECKPOINT_RESPAWN_TILEPOS, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.checkpoint_respawn_tilepos, .number_type = SETTING_BYTE, .max = 29,
-				.text = "Checkpoint respawn tile position",
-				.explanation = "Tile position (0 to 29) where you respawn after triggering the checkpoint.\n(default = 6)"},
-		{.id = SETTING_CHECKPOINT_CLEAR_TILE_ROOM, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.checkpoint_clear_tile_room, .number_type = SETTING_BYTE, .min = 1, .max = 24,
-				.text = "Checkpoint clear tile room",
-				.explanation = "Room where a tile is cleared after respawning at the checkpoint location.\n(default = 7)"},
-		{.id = SETTING_CHECKPOINT_CLEAR_TILE_COL, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.checkpoint_clear_tile_col, .number_type = SETTING_BYTE, .max = 9,
-				.text = "Checkpoint clear tile column",
-				.explanation = "Location (column/row) of the cleared tile after respawning at the checkpoint location.\n(default: column = 4, row = top)"},
-		{.id = SETTING_CHECKPOINT_CLEAR_TILE_ROW, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.checkpoint_clear_tile_row, .number_type = SETTING_BYTE, .max = 2, .names_list = &row_setting_names_list,
-				.text = "Checkpoint clear tile row",
-				.explanation = "Location (column/row) of the cleared tile after respawning at the checkpoint location.\n(default: column = 4, row = top)"},
-		{.id = SETTING_SKELETON_LEVEL, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.skeleton_level, .number_type = SETTING_WORD, .max = 16, .names_list = &never_is_16_list,
-				.text = "Skeleton awakes level",
-				.explanation = "Level and room where a skeleton can come alive.\n(default: level = 3, room = 1)"},
-		{.id = SETTING_SKELETON_ROOM, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.skeleton_room, .number_type = SETTING_BYTE, .min = 1, .max = 24,
-				.text = "Skeleton awakes room",
-				.explanation = "Level and room where a skeleton can come alive.\n(default: level = 3, room = 1)"},
-		{.id = SETTING_SKELETON_TRIGGER_COLUMN_1, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.skeleton_trigger_column_1, .number_type = SETTING_BYTE, .max = 9,
-				.text = "Skeleton trigger column (1)",
-				.explanation = "The skeleton will wake up if the kid is on one of these two columns.\n(defaults = 2,3)"},
-		{.id = SETTING_SKELETON_TRIGGER_COLUMN_2, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.skeleton_trigger_column_2, .number_type = SETTING_BYTE, .max = 9,
-				.text = "Skeleton trigger column (2)",
-				.explanation = "The skeleton will wake up if the kid is on one of these two columns.\n(defaults = 2,3)"},
-		{.id = SETTING_SKELETON_COLUMN, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.skeleton_column, .number_type = SETTING_BYTE, .max = 9,
-				.text = "Skeleton tile column",
-				.explanation = "Location (column/row) of the skeleton tile that will awaken.\n(default: column = 5, row = middle)"},
-		{.id = SETTING_SKELETON_ROW, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.skeleton_row, .number_type = SETTING_BYTE, .max = 2, .names_list = &row_setting_names_list,
-				.text = "Skeleton tile row",
-				.explanation = "Location (column/row) of the skeleton tile that will awaken.\n(default: column = 5, row = middle)"},
-		{.id = SETTING_SKELETON_REQUIRE_OPEN_LEVEL_DOOR, .style = SETTING_STYLE_TOGGLE, .required = &use_custom_options,
-				.linked = &custom_saved.skeleton_require_open_level_door,
-				.text = "Skeleton requires level door",
-				.explanation = "Whether the level door must first be opened before the skeleton awakes.\n(default = true)"},
-		{.id = SETTING_SKELETON_SKILL, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.skeleton_skill, .number_type = SETTING_BYTE, .max = 15,
-				.text = "Skeleton skill",
-				.explanation = "Skill of the awoken skeleton.\n(default = 2)"},
-		{.id = SETTING_SKELETON_REAPPEAR_ROOM, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.skeleton_reappear_room, .number_type = SETTING_BYTE, .min = 1, .max = 24,
-				.text = "Skeleton reappear room",
-				.explanation = "If the skeleton falls into this room, it will reappear there.\n(default = 3)"},
-		{.id = SETTING_SKELETON_REAPPEAR_X, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.skeleton_reappear_x, .number_type = SETTING_BYTE, .max = 255,
-				.text = "Skeleton reappear X coordinate",
-				.explanation = "Horizontal coordinate where the skeleton reappears.\n(default = 133)\n"
-						"(58 = left edge of the room, 198 = right edge)"},
-		{.id = SETTING_SKELETON_REAPPEAR_ROW, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.skeleton_reappear_row, .number_type = SETTING_BYTE, .max = 2, .names_list = &row_setting_names_list,
-				.text = "Skeleton reappear row",
-				.explanation = "Row on which the skeleton reappears.\n(default = middle)"},
-		{.id = SETTING_SKELETON_REAPPEAR_DIR, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.skeleton_reappear_dir, .number_type = SETTING_SBYTE, .min = -1, .max = 0, .names_list = &direction_setting_names_list,
-				.text = "Skeleton reappear direction",
-				.explanation = "Direction the skeleton is facing when it reappears.\n(default = right)"},
-		{.id = SETTING_MIRROR_LEVEL, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.mirror_level, .number_type = SETTING_WORD, .max = 16, .names_list = &never_is_16_list,
-				.text = "Mirror level",
-				.explanation = "Level and room where the mirror appears.\n(default: level = 4, room = 4)"},
-		{.id = SETTING_MIRROR_ROOM, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.mirror_room, .number_type = SETTING_BYTE, .min = 1, .max = 24,
-				.text = "Mirror room",
-				.explanation = "Level and room where the mirror appears.\n(default: level = 4, room = 4)"},
-		{.id = SETTING_MIRROR_COLUMN, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.mirror_column, .number_type = SETTING_BYTE, .max = 9,
-				.text = "Mirror column",
-				.explanation = "Location (column/row) of the tile where the mirror appears.\n(default: column = 4, row = top)"},
-		{.id = SETTING_MIRROR_ROW, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.mirror_row, .number_type = SETTING_BYTE, .max = 2, .names_list = &row_setting_names_list,
-				.text = "Mirror row",
-				.explanation = "Location (column/row) of the tile where the mirror appears.\n(default: column = 4, row = top)"},
-		{.id = SETTING_MIRROR_TILE, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.mirror_tile, .number_type = SETTING_BYTE, .max = 31, .names_list = &tile_type_setting_names_list,
-				.text = "Mirror tile",
-				.explanation = "Tile type that appears when the mirror should appear.\n(default = mirror)"},
-		{.id = SETTING_SHOW_MIRROR_IMAGE, .style = SETTING_STYLE_TOGGLE, .required = &use_custom_options,
-				.linked = &custom_saved.show_mirror_image, .number_type = SETTING_BYTE,
-				.text = "Show mirror image",
-				.explanation = "Show the kid's mirror image in the mirror.\n(default = true)"},
-
-		{.id = SETTING_SHADOW_STEAL_LEVEL, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.shadow_steal_level, .number_type = SETTING_BYTE, .max = 16, .names_list = &never_is_16_list,
-				.text = "Shadow steal level",
-				.explanation = "Level where the shadow steals a potion.\n(default = 5)"},
-		{.id = SETTING_SHADOW_STEAL_ROOM, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.shadow_steal_room, .number_type = SETTING_BYTE, .min = 1, .max = 24,
-				.text = "Shadow steal room",
-				.explanation = "Room where the shadow steals a potion.\n(default = 24)"},
-		{.id = SETTING_SHADOW_STEP_LEVEL, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.shadow_step_level, .number_type = SETTING_BYTE, .max = 16, .names_list = &never_is_16_list,
-				.text = "Shadow step level",
-				.explanation = "Level where the shadow steps on a button.\n(default = 6)"},
-		{.id = SETTING_SHADOW_STEP_ROOM, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.shadow_step_room, .number_type = SETTING_BYTE, .min = 1, .max = 24,
-				.text = "Shadow step room",
-				.explanation = "Room where the shadow steps on a button.\n(default = 1)"},
-
-		{.id = SETTING_FALLING_EXIT_LEVEL, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.falling_exit_level, .number_type = SETTING_WORD, .max = 16, .names_list = &never_is_16_list,
-				.text = "Falling exit level",
-				.explanation = "Level where the kid can progress to the next level by falling off a specific room.\n(default = 6)"},
-		{.id = SETTING_FALLING_EXIT_ROOM, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.falling_exit_room, .number_type = SETTING_BYTE, .min = 1, .max = 24,
-				.text = "Falling exit room",
-				.explanation = "Room where the kid can progress to the next level by falling down.\n(default = 1)"},
-		{.id = SETTING_FALLING_ENTRY_LEVEL, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.falling_entry_level, .number_type = SETTING_WORD, .max = 16, .names_list = &never_is_16_list,
-				.text = "Falling entry level",
-				.explanation = "If the kid starts in this level in this room, the starting room will not be shown,\n"
-						"but the room below instead, to allow for a falling entry. (default: level = 7, room = 17)"},
-		{.id = SETTING_FALLING_ENTRY_ROOM, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.falling_entry_room, .number_type = SETTING_BYTE, .min = 1, .max = 24,
-				.text = "Falling entry room",
-				.explanation = "If the kid starts in this level in this room, the starting room will not be shown,\n"
-						"but the room below instead, to allow for a falling entry. (default: level = 7, room = 17)"},
-		{.id = SETTING_MOUSE_LEVEL, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.mouse_level, .number_type = SETTING_WORD, .max = 16, .names_list = &never_is_16_list,
-				.text = "Mouse level",
-				.explanation = "Level where the mouse appears.\n(default = 8)"},
-		{.id = SETTING_MOUSE_ROOM, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.mouse_room, .number_type = SETTING_BYTE, .min = 1, .max = 24,
-				.text = "Mouse room",
-				.explanation = "Room where the mouse appears.\n(default = 16)"},
-		{.id = SETTING_MOUSE_DELAY, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.mouse_delay, .number_type = SETTING_WORD, .max = UINT16_MAX,
-				.text = "Mouse delay",
-				.explanation = "Number of seconds to wait before the mouse appears.\n(default = 12.5)"},
-		{.id = SETTING_MOUSE_OBJECT, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.mouse_object, .number_type = SETTING_BYTE, .max = 255,
-				.text = "Mouse object",
-				.explanation = "Mouse object type. (default = 24)\n"
-						"Be careful: a value not 24 will change the mouse for the kid."},
-		{.id = SETTING_MOUSE_START_X, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.mouse_start_x, .number_type = SETTING_BYTE, .max = 255,
-				.text = "Mouse start X coordinate",
-				.explanation = "Horizontal starting coordinate of the mouse.\n(default = 200)"},
-		{.id = SETTING_LOOSE_TILES_LEVEL, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.loose_tiles_level, .number_type = SETTING_WORD, .max = 16, .names_list = &never_is_16_list,
-				.text = "Loose tiles level",
-				.explanation = "Level where loose floor tiles will fall down.\n(default = 13)"},
-		{.id = SETTING_LOOSE_TILES_ROOM_1, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.loose_tiles_room_1, .number_type = SETTING_BYTE, .min = 1, .max = 24,
-				.text = "Loose tiles room (1)",
-				.explanation = "Rooms where visible loose floor tiles will fall down.\n(default = 23, 16)"},
-		{.id = SETTING_LOOSE_TILES_ROOM_2, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.loose_tiles_room_2, .number_type = SETTING_BYTE, .min = 1, .max = 24,
-				.text = "Loose tiles room (2)",
-				.explanation = "Rooms where visible loose floor tiles will fall down.\n(default = 23, 16)"},
-		{.id = SETTING_LOOSE_TILES_FIRST_TILE, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.loose_tiles_first_tile, .number_type = SETTING_BYTE, .max = 29,
-				.text = "Loose tiles first tile",
-				.explanation = "Range of loose floor tile positions that will be pressed.\n(default = 22 to 27)"},
-		{.id = SETTING_LOOSE_TILES_LAST_TILE, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.loose_tiles_last_tile, .number_type = SETTING_BYTE, .max = 29,
-				.text = "Loose tiles last tile",
-				.explanation = "Range of loose floor tile positions that will be pressed.\n(default = 22 to 27)"},
-		{.id = SETTING_JAFFAR_VICTORY_LEVEL, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.jaffar_victory_level, .number_type = SETTING_WORD, .max = 16, .names_list = &never_is_16_list,
-				.text = "Jaffar victory level",
-				.explanation = "Killing the guard in this level causes the screen to flash, and event 0 to be triggered upon leaving the room.\n(default = 13)"},
-		{.id = SETTING_JAFFAR_VICTORY_FLASH_TIME, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.jaffar_victory_flash_time, .number_type = SETTING_BYTE, .max = UINT16_MAX,
-				.text = "Jaffar victory flash time",
-				.explanation = "How long the screen will flash after killing Jaffar.\n(default = 18)"},
-		{.id = SETTING_HIDE_LEVEL_NUMBER_FIRST_LEVEL, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.hide_level_number_from_level, .number_type = SETTING_WORD, .max = 16, .names_list = &never_is_16_list,
-				.text = "Hide level number from level",
-				.explanation = "First level where the level number will not be displayed.\n(default = 14)"},
-		{.id = SETTING_LEVEL_13_LEVEL_NUMBER, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.level_13_level_number, .number_type = SETTING_BYTE, .max = UINT16_MAX,
-				.text = "Level 13 displayed level number",
-				.explanation = "Level number displayed on level 13.\n(default = 12)"},
-		{.id = SETTING_VICTORY_STOPS_TIME_LEVEL, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.victory_stops_time_level, .number_type = SETTING_WORD, .max = 16, .names_list = &never_is_16_list,
-				.text = "Victory stops time level",
-				.explanation = "Level where Jaffar's death stops time.\n(default = 13)"},
-		{.id = SETTING_WIN_LEVEL, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.win_level, .number_type = SETTING_WORD, .max = 16, .names_list = &never_is_16_list,
-				.text = "Level where you can win",
-				.explanation = "Level and room where you can win the game.\n(default: level = 14, room = 5)"},
-		{.id = SETTING_WIN_ROOM, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.win_room, .number_type = SETTING_BYTE, .min = 1, .max = 24,
-				.text = "Room where you can win",
-				.explanation = "Level and room where you can win the game.\n(default: level = 14, room = 5)"},
-		{.id = SETTING_LOOSE_FLOOR_DELAY, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.loose_floor_delay, .number_type = SETTING_BYTE, .min = 0, .max = 127,
-				.text = "Loose floor delay",
-				.explanation = "Number of seconds to wait before a loose floor falls.\n(default = 0.92)"},
-		{.id = SETTING_BASE_SPEED, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.base_speed, .number_type = SETTING_BYTE, .min = 1, .max = 127,
-				.text = "Base speed",
-				.explanation = "Game speed when not fighting (delay between frames in 1/60 seconds). Smaller is faster.\n(default = 5)"},
-		{.id = SETTING_FIGHT_SPEED, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.fight_speed, .number_type = SETTING_BYTE, .min = 1, .max = 127,
-				.text = "Fight speed",
-				.explanation = "Game speed when fighting (delay between frames in 1/60 seconds). Smaller is faster.\n(default = 6)"},
-		{.id = SETTING_CHOMPER_SPEED, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = &custom_saved.chomper_speed, .number_type = SETTING_BYTE, .min = 0, .max = 127,
-				.text = "Chomper speed",
-				.explanation = "Chomper speed (length of the animation cycle in frames). Smaller is faster.\n(default = 15)"},
+	#define SETTING(_id, _style, _required, _text, _explanation) { .id = SETTING_##_id, .text = _text, .explanation = _explanation, _style _required },
+	MODS_SETTINGS(SETTING)
+	#undef  SETTING
 };
 
-NAMES_LIST(level_type_setting_names, { "Dungeon", "Palace", });
-KEY_VALUE_LIST(guard_type_setting_names, {{"None", -1}, {"Normal", 0}, {"Fat", 1}, {"Skeleton", 2}, {"Vizier", 3}, {"Shadow", 4}});
-NAMES_LIST(entry_pose_setting_names, {"Turning", "Falling", "Running"});
-KEY_VALUE_LIST(off_setting_name, {{"Off", -1}}); // used for the seamless exit setting
-
 setting_type level_settings[] = {
-		{.id = SETTING_LEVEL_SETTINGS, .style = SETTING_STYLE_TEXT_ONLY, .required = &use_custom_options,
-				.text = "Customize another level...",
-				.explanation = "Select another level to customize."},
-		{.id = SETTING_LEVEL_TYPE, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.names_list = &level_type_setting_names_list,
-				.linked = NULL /* depends on which level */, .number_type = SETTING_BYTE, .max = 1,
-				.text = "Level type",
-				.explanation = "Which environment is used in this level.\n"
-						"(either dungeon or palace)"},
-		{.id = SETTING_LEVEL_COLOR, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = NULL, .number_type = SETTING_WORD, .max = 4,
-				.text = "Level color palette",
-				.explanation = "0: colors from VDUNGEON.DAT/VPALACE.DAT\n>0: colors from PRINCE.DAT.\n"
-						"You need a PRINCE.DAT from PoP 1.3 or 1.4 for this."},
-		{.id = SETTING_GUARD_TYPE, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.names_list = &guard_type_setting_names_list,
-				.linked = NULL, .number_type = SETTING_SHORT, .min = -1, .max = 4,
-				.text = "Guard type",
-				.explanation = "Guard type used in this level (normal, fat, skeleton, vizier, or shadow)."},
-		{.id = SETTING_GUARD_HP, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = NULL, .number_type = SETTING_BYTE, .max = UINT8_MAX,
-				.text = "Guard hitpoints",
-				.explanation = "Number of hitpoints guards have in this level."},
-		{.id = SETTING_CUTSCENE, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = NULL, .number_type = SETTING_BYTE, .max = 15,
-				.text = "Cutscene before level",
-				.explanation = "Cutscene that plays between the previous level and this level.\n"
-						"0: none, 2 or 6: standing, 4: lying down, 8: mouse leaves,\n"
-						"9: mouse returns, 12: standing or turn around"},
-		{.id = SETTING_ENTRY_POSE, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = NULL, .number_type = SETTING_BYTE, .max = 2, .names_list = &entry_pose_setting_names_list,
-				.text = "Entry pose",
-				.explanation = "The pose the kid has when the level starts.\n"},
-		{.id = SETTING_SEAMLESS_EXIT, .style = SETTING_STYLE_NUMBER, .required = &use_custom_options,
-				.linked = NULL, .number_type = SETTING_SBYTE, .min = -1, .max = 24, .names_list = &off_setting_name_list,
-				.text = "Seamless exit",
-				.explanation = "Entering this room moves the kid to the next level.\n"
-						"Set to -1 to disable."},
+	#define SETTING(_id, _style, _required, _text, _explanation) { .id = SETTING_##_id, .text = _text, .explanation = _explanation, _style _required },
+	LEVEL_SETTINGS(SETTING)
+	#undef  SETTING
 };
 
 typedef struct settings_area_type {
@@ -1309,7 +936,7 @@ void turn_setting_on_off(int setting_id, byte new_state, void* linked) {
 #endif
 			}
 			break;
-#ifdef USE_LIGHTING
+#if USE_LIGHTING
 		case SETTING_ENABLE_LIGHTING:
 			enable_lighting = new_state;
 			if (new_state && lighting_mask == NULL) {
@@ -1595,7 +1222,7 @@ void draw_setting(setting_type* setting, rect_type* parent, int* y_offset, int i
 					play_menu_sound(sound_22_loose_shake_3);
 					current_dialog_box = DIALOG_RESTORE_DEFAULT_SETTINGS;
 					current_dialog_text = "Restore all settings to their default values?";
-				} else if (setting->id == SETTING_LEVEL_SETTINGS) {
+				} else if (setting->id == SETTING_LEVEL_SETTINGS || setting->id == SETTING_LEVEL_SETTINGS_ANOTHER) {
 					play_menu_sound(sound_22_loose_shake_3);
 					current_dialog_box = DIALOG_SELECT_LEVEL;
 				}
@@ -1769,7 +1396,7 @@ void confirmation_dialog_result(int which_dialog, int button) {
 			were_settings_changed = true;
 			set_options_to_default();
 			turn_setting_on_off(SETTING_USE_INTEGER_SCALING, use_integer_scaling, NULL);
-#ifdef USE_LIGHTING
+#if USE_LIGHTING
 			turn_setting_on_off(SETTING_ENABLE_LIGHTING, enable_lighting, NULL);
 #endif
 			apply_aspect_ratio();
@@ -2154,7 +1781,7 @@ void process_ingame_settings_user_managed(SDL_RWops* rw, rw_process_func_type pr
 	process(scaling_type);
 	process(enable_fade);
 	process(enable_flash);
-#ifdef USE_LIGHTING
+#if USE_LIGHTING
 	process(enable_lighting);
 #endif
 }

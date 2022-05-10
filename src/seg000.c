@@ -65,7 +65,7 @@ void far pop_main() {
 	if (check_param("mute")) is_sound_on = 0;
 	turn_sound_on_off((is_sound_on != 0) * 15); // Turn off sound/music if those options were set.
 
-#ifdef USE_REPLAY
+#if USE_REPLAY
 	if (g_argc > 1) {
 		char *filename = g_argv[1]; // file dragged on top of executable or double clicked
 		char *e = strrchr(filename, '.');
@@ -112,7 +112,7 @@ void far pop_main() {
 	draw_mode = check_param("draw") != NULL && cheats_enabled;
 	demo_mode = check_param("demo") != NULL;
 
-#ifdef USE_REPLAY
+#if USE_REPLAY
 	init_record_replay();
 #endif
 
@@ -120,7 +120,7 @@ void far pop_main() {
 	dathandle = open_dat("PRINCE.DAT", 'G');
 
 	if (cheats_enabled
-		#ifdef USE_REPLAY
+		#if USE_REPLAY
 		|| recording
 		#endif
 	) {
@@ -169,7 +169,7 @@ void __pascal far init_game_main() {
 	// PRINCE.DAT: flame, sword on floor, potion
 	chtab_addrs[id_chtab_1_flameswordpotion] = load_sprites_from_file(150, 1<<3, 1);
 	close_dat(dathandle);
-#ifdef USE_LIGHTING
+#if USE_LIGHTING
 	init_lighting();
 #endif
 	load_all_sounds();
@@ -186,7 +186,7 @@ word first_start = 1;
 jmp_buf setjmp_buf;
 // seg000:0358
 void __pascal far start_game() {
-#ifdef USE_COPYPROT
+#if USE_COPYPROT
 	word which_entry;
 	word pos;
 	word entry_used[40];
@@ -206,7 +206,7 @@ void __pascal far start_game() {
 	}
 	release_title_images(); // added
 	free_optsnd_chtab(); // added
-#ifdef USE_COPYPROT
+#if USE_COPYPROT
 	copyprot_plac = prandom(13);
 	memset(&entry_used, 0, sizeof(entry_used));
 	memset(&letts_used, 0, sizeof(letts_used));
@@ -236,7 +236,7 @@ void __pascal far start_game() {
 	}
 }
 
-#ifdef USE_QUICKSAVE
+#if USE_QUICKSAVE
 // All these functions return true on success, false otherwise.
 
 FILE* quick_fp;
@@ -345,7 +345,7 @@ int quick_process(process_func_type process_func) {
 	process(ctrl1_down);
 	process(ctrl1_shift2);
 	// replay recording state
-#ifdef USE_REPLAY
+#if USE_REPLAY
 	process(curr_tick);
 #endif
 #ifdef USE_COLORED_TORCHES
@@ -500,7 +500,7 @@ void check_quick_op() {
 	}
 	if (need_quick_load) {
 /*
-#ifdef USE_REPLAY
+#if USE_REPLAY
 		if (recording) {
 			stop_recording(); // quickloading would mess up the replay!
 		}
@@ -545,10 +545,10 @@ int __pascal far process_key() {
 
 	if (start_level < 0) {
 		if (key || control_shift) {
-			#ifdef USE_QUICKSAVE
+			#if USE_QUICKSAVE
 			if (key == SDL_SCANCODE_F9) need_quick_load = 1;
 			#endif
-			#ifdef USE_REPLAY
+			#if USE_REPLAY
 			if (key == SDL_SCANCODE_TAB || need_start_replay) {
 				start_replay();
 			}
@@ -563,7 +563,7 @@ int __pascal far process_key() {
 				start_level = custom->first_level; // 1
 			}
 			draw_rect(&screen_rect, 0);
-#ifdef USE_FADE
+#if USE_FADE
 			if (is_global_fading) {
 				fade_palette_buffer->proc_restore_free(fade_palette_buffer);
 				is_global_fading = 0;
@@ -576,7 +576,7 @@ int __pascal far process_key() {
 	if (rem_min != 0 && Kid.alive > 6 && (control_shift || key == SDL_SCANCODE_RETURN)) {
 		key = SDL_SCANCODE_A | WITH_CTRL; // Ctrl+A
 	}
-#ifdef USE_REPLAY
+#if USE_REPLAY
 	if (recording) key_press_while_recording(&key);
 	else if (replaying) key_press_while_replaying(&key);
 #endif
@@ -684,7 +684,7 @@ int __pascal far process_key() {
 					next_level = 1;
 				} else {
 					if (current_level == 15 && cheats_enabled) {
-#ifdef USE_COPYPROT
+#if USE_COPYPROT
 						if (enable_copyprot) {
 							next_level = custom->copyprot_level;
 							custom->copyprot_level = -1;
@@ -701,7 +701,7 @@ int __pascal far process_key() {
 				stop_sounds();
 			}
 		break;
-#ifdef USE_QUICKSAVE
+#if USE_QUICKSAVE
 		case SDL_SCANCODE_F6:
 		case SDL_SCANCODE_F6 | WITH_SHIFT:
 			if (Kid.alive < 0) need_quick_save = 1;
@@ -710,7 +710,7 @@ int __pascal far process_key() {
 		case SDL_SCANCODE_F9 | WITH_SHIFT:
 			need_quick_load = 1;
 		break;
-#ifdef USE_REPLAY
+#if USE_REPLAY
 		case SDL_SCANCODE_TAB | WITH_CTRL:
 		case SDL_SCANCODE_TAB | WITH_CTRL | WITH_SHIFT:
 			if (recording) { // finished recording
@@ -948,7 +948,7 @@ void __pascal far draw_game_frame() {
 			start_level = -1;
 			need_quotes = 1;
 
-#ifdef USE_REPLAY
+#if USE_REPLAY
 			if (recording) stop_recording();
 			if (replaying) end_replay();
 #endif
@@ -1250,7 +1250,7 @@ void __pascal far check_the_end() {
 		drawn_room = next_room;
 		load_room_links();
 		if (current_level == /*14*/ custom->win_level && drawn_room == /*5*/ custom->win_room) {
-#ifdef USE_REPLAY
+#if USE_REPLAY
 			if (recording) stop_recording();
 			if (replaying) end_replay();
 #endif
@@ -1684,7 +1684,7 @@ void __pascal far load_more_opt_graf(const char *filename) {
 
 // seg000:148D
 int __pascal far do_paused() {
-#ifdef USE_REPLAY
+#if USE_REPLAY
 	if (replaying && skipping_replay) return 0;
 #endif
 
@@ -1774,7 +1774,7 @@ void __pascal far copy_screen_rect(const rect_type far *source_rect_ptr) {
 		target_rect_ptr = source_rect_ptr;
 	}
 	method_1_blit_rect(onscreen_surface_, offscreen_surface, target_rect_ptr, target_rect_ptr, 0);
-#ifdef USE_LIGHTING
+#if USE_LIGHTING
 	update_lighting(target_rect_ptr);
 #endif
 }
@@ -2105,7 +2105,7 @@ short __pascal far load_game() {
 	if (fread(&rem_tick, 1, 2, handle) != 2) goto loc_1E8E;
 	if (fread(&start_level, 1, 2, handle) != 2) goto loc_1E8E;
 	if (fread(&hitp_beg_lev, 1, 2, handle) != 2) goto loc_1E8E;
-#ifdef USE_COPYPROT
+#if USE_COPYPROT
 	if (enable_copyprot && custom->copyprot_level > 0) {
 		custom->copyprot_level = start_level;
 	}
@@ -2235,7 +2235,7 @@ void __pascal far load_title_images(int bgcolor) {
 	}
 }
 
-#ifdef USE_COPYPROT
+#if USE_COPYPROT
 // data:017A
 const word copyprot_word[] = {9, 1, 6, 4, 5, 3, 6, 3, 4, 4, 3, 2,12, 5,13, 1, 9, 2, 2, 4, 9, 4,11, 8, 5, 4, 1, 6, 2, 4, 6, 8, 4, 2, 7,11, 5, 4, 1, 2};
 // data:012A
@@ -2246,7 +2246,7 @@ const word copyprot_page[] = {5, 3, 7, 3, 3, 4, 1, 5,12, 5,11,10, 1, 2, 8, 8, 2,
 
 // seg000:23F4
 void __pascal far show_copyprot(int where) {
-#ifdef USE_COPYPROT
+#if USE_COPYPROT
 	char sprintf_temp[140];
 	if (current_level != 15) return;
 	if (where) {
@@ -2322,11 +2322,11 @@ const rect_type splash_text_2_rect = {50, 0, 200, 320};
 
 const char* splash_text_1 = "SDLPoP " SDLPOP_VERSION;
 const char* splash_text_2 =
-#ifdef USE_QUICKSAVE
+#if USE_QUICKSAVE
 		"To quick save/load, press F6/F9 in-game.\n"
 		"\n"
 #endif
-#ifdef USE_REPLAY
+#if USE_REPLAY
 		"To record replays, press Ctrl+Tab in-game.\n"
 		"To view replays, press Tab on the title screen.\n"
 		"\n"

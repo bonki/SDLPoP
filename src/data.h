@@ -70,7 +70,7 @@ extern byte * guard_palettes;
 extern chtab_type *chtab_addrs[10];
 
 
-#ifdef USE_COPYPROT
+#if USE_COPYPROT
 // data:4356
 extern word copyprot_plac;
 // data:3D16
@@ -248,7 +248,7 @@ extern sbyte control_y;
 // data:4612
 extern sbyte control_x;
 
-#ifdef USE_FADE
+#if USE_FADE
 // data:4CCA
 extern word is_global_fading;
 // data:4400
@@ -515,7 +515,7 @@ extern word offguard; // name from Apple II source
 // data:3D32
 extern word droppedout; // name from Apple II source
 
-#ifdef USE_COPYPROT
+#if USE_COPYPROT
 // data:00A2
 extern /*const*/ word copyprot_room[] INIT(= {3,  3,  3,  3,  3,  3,  4,  4,  4,  4,  4,  4,  4,  4});
 // data:00BE
@@ -692,7 +692,7 @@ extern textstate_type textstate INIT(= {0,0,0,15,&hc_font});
 extern int need_quick_save INIT(= 0);
 extern int need_quick_load INIT(= 0);
 
-#ifdef USE_REPLAY
+#if USE_REPLAY
 extern byte recording INIT(= 0);
 extern byte replaying INIT(= 0);
 extern dword num_replay_ticks INIT(= 0);
@@ -735,7 +735,7 @@ extern byte enable_replay INIT(= 1);
 extern byte use_correct_aspect_ratio INIT(= 0);
 extern byte use_integer_scaling INIT(= 0);
 extern byte scaling_type INIT(= 0);
-#ifdef USE_LIGHTING
+#if USE_LIGHTING
 extern byte enable_lighting INIT(= 0);
 extern image_type* lighting_mask;
 #endif
@@ -921,7 +921,7 @@ extern char mods_folder[POP_MAX_PATH] INIT(= "mods");
 
 extern int play_demo_level;
 
-#ifdef USE_REPLAY
+#if USE_REPLAY
 extern int g_deprecation_number;
 #endif
 

@@ -220,7 +220,7 @@ static int global_ini_callback(const char *section, const char *name, const char
 		process_boolean("enable_quicksave", &enable_quicksave);
 		process_boolean("enable_quicksave_penalty", &enable_quicksave_penalty);
 
-#ifdef USE_REPLAY
+#if USE_REPLAY
 		process_boolean("enable_replay", &enable_replay);
 
 		if (strcasecmp(name, "replays_folder") == 0) {
@@ -230,7 +230,7 @@ static int global_ini_callback(const char *section, const char *name, const char
 			return 1;
 		}
 #endif
-#ifdef USE_LIGHTING
+#if USE_LIGHTING
 		process_boolean("enable_lighting", &enable_lighting);
 #endif
 	}
@@ -476,7 +476,7 @@ void set_options_to_default() {
 	enable_quicksave = 1;
 	enable_quicksave_penalty = 1;
 	enable_replay = 1;
-#ifdef USE_LIGHTING
+#if USE_LIGHTING
 	enable_lighting = 0;
 #endif
 	// By default, all the fixes are used, unless otherwise specified.
@@ -794,7 +794,7 @@ void load_mod_options() {
 			char message[256];
 			snprintf_check(message, sizeof(message), "Cannot find the mod '%s' in the mods folder.", levelset_name);
 			show_dialog(message);
-#ifdef USE_REPLAY
+#if USE_REPLAY
 			if (replaying) show_dialog("If the replay file restarts the level or advances to the next level, a wrong level will be loaded.");
 #endif
 		}

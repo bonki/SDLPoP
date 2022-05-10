@@ -83,7 +83,7 @@ int __pascal far proc_cutscene_frame(int wait_frames) {
 			if (!disable_keys && do_paused()) {
 				stop_sounds();
 				draw_rect(&screen_rect, 0);
-#ifdef USE_FADE
+#if USE_FADE
 				if (is_global_fading) {
 					fade_palette_buffer->proc_restore_free(fade_palette_buffer);
 					is_global_fading = 0;
@@ -91,7 +91,7 @@ int __pascal far proc_cutscene_frame(int wait_frames) {
 #endif
 				return 1;
 			}
-#ifdef USE_FADE
+#if USE_FADE
 			if (is_global_fading) {
 				if (fade_palette_buffer->proc_fade_frame(fade_palette_buffer)) {
 					fade_palette_buffer->proc_restore_free(fade_palette_buffer);
@@ -119,13 +119,13 @@ void __pascal far play_both_seq() {
 // seg001:00E6
 void __pascal far draw_proom_drects() {
 	draw_princess_room_bg();
-#ifdef USE_FADE
+#if USE_FADE
 	if (!is_global_fading) {
 #endif
 	while (drects_count--) {
 		copy_screen_rect(&drects[drects_count]);
 	}
-#ifdef USE_FADE
+#if USE_FADE
 	}
 #endif
 	drects_count = 0;
@@ -551,7 +551,7 @@ void __pascal far do_flash(short color) {
 }
 
 void delay_ticks(Uint32 ticks) {
-#ifdef USE_REPLAY
+#if USE_REPLAY
 	if (replaying && skipping_replay) return;
 #endif
 	SDL_Delay(ticks *(1000/60));
@@ -818,7 +818,7 @@ void __pascal far show_hof_text(rect_type far *rect,int x_align,int y_align, con
 
 // seg001:1029
 int __pascal far fade_in_1() {
-#ifdef USE_FADE
+#if USE_FADE
 //	sbyte index;
 	word interrupted;
 	if (graphics_mode == gmMcgaVga) {
@@ -846,7 +846,7 @@ int __pascal far fade_in_1() {
 
 // seg001:112D
 int __pascal far fade_out_1() {
-#ifdef USE_FADE
+#if USE_FADE
 	word interrupted;
 	if (graphics_mode == gmMcgaVga) {
 		fade_palette_buffer = make_pal_buffer_fadeout(0x6689, /*0*/ 2);

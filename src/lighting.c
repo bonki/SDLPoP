@@ -20,7 +20,7 @@ The authors of this program may be contacted at https://forum.princed.org
 
 #include "common.h"
 
-#ifdef USE_LIGHTING
+#if USE_LIGHTING
 
 image_type* screen_overlay = NULL;
 Uint32 bgcolor;

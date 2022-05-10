@@ -1208,7 +1208,7 @@ void __pascal far load_alter_mod(int tilepos) {
 			break;
 		case tiles_10_potion:
 			*curr_tile_modif <<= 3;
-#ifdef USE_COPYPROT
+#if USE_COPYPROT
 			if (current_level == 15) {
 				// Copy protection
 				if (copyprot_room[copyprot_plac] == loaded_room &&

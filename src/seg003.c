@@ -49,7 +49,7 @@ void __pascal far init_game(int level) {
 // seg003:005C
 void __pascal far play_level(int level_number) {
 	cutscene_ptr_type cutscene_func;
-#ifdef USE_COPYPROT
+#if USE_COPYPROT
 	if (enable_copyprot && level_number == custom->copyprot_level) {
 		level_number = 15;
 	}
@@ -68,7 +68,7 @@ void __pascal far play_level(int level_number) {
 			cutscene_func = tbl_cutscenes[custom->tbl_cutscenes_by_index[level_number]];
 			if (cutscene_func != NULL
 
-				#ifdef USE_REPLAY
+				#if USE_REPLAY
 				&& !(recording || replaying)
 				#endif
 #ifdef USE_SCREENSHOT
@@ -107,7 +107,7 @@ void __pascal far play_level(int level_number) {
 		// busy waiting?
 		while (check_sound_playing() && !do_paused()) idle();
 		stop_sounds();
-		#ifdef USE_REPLAY
+		#if USE_REPLAY
 		if (replaying) replay_restore_level();
 		if (skipping_replay) {
 			if (replay_seek_target == replay_seek_0_next_room ||
@@ -120,7 +120,7 @@ void __pascal far play_level(int level_number) {
 		show_copyprot(0);
 		level_number = play_level_2();
 		// hacked...
-#ifdef USE_COPYPROT
+#if USE_COPYPROT
 		if (enable_copyprot && level_number == custom->copyprot_level && !demo_mode) {
 			level_number = 15;
 		} else {
@@ -224,7 +224,7 @@ void __pascal far draw_level_first() {
 	redraw_screen(0);
 	draw_kid_hp(hitp_curr, hitp_max);
 
-#ifdef USE_QUICKSAVE
+#if USE_QUICKSAVE
 	check_quick_op();
 #endif
 
@@ -259,7 +259,7 @@ void __pascal far redraw_screen(int drawing_different_room) {
 		}
 		need_drects = 0;
 		redraw_room();
-#ifdef USE_LIGHTING
+#if USE_LIGHTING
 	redraw_lighting();
 #endif
 		if (is_keyboard_mode) {
@@ -270,7 +270,7 @@ void __pascal far redraw_screen(int drawing_different_room) {
 		if (is_keyboard_mode) {
 			clear_kbd_buf();
 		}
-#ifdef USE_COPYPROT
+#if USE_COPYPROT
 		if (current_level == 15) {
 			// letters on potions level
 			current_target_surface = offscreen_surface;
@@ -351,14 +351,14 @@ int __pascal far play_level_2() {
 	test_timing_state_type test_timing_state = {0};
 #endif
 	while (1) { // main loop
-#ifdef USE_QUICKSAVE
+#if USE_QUICKSAVE
 		check_quick_op();
 #endif
 #ifdef CHECK_TIMING
 		test_timings(&test_timing_state);
 #endif
 
-#ifdef USE_REPLAY
+#if USE_REPLAY
 		if (need_replay_cycle) replay_cycle();
 #endif
 		if (Kid.sword == sword_2_drawn) {
@@ -373,7 +373,7 @@ int __pascal far play_level_2() {
 		timers();
 		play_frame();
 
-#ifdef USE_REPLAY
+#if USE_REPLAY
 		// At the exact "end of level" frame, preserve the seed to ensure reproducibility,
 		// regardless of how long the sound is still playing *after* this frame (torch animation modifies the seed!)
 		if (keep_last_seed == 1) {
@@ -396,7 +396,7 @@ int __pascal far play_level_2() {
 				hitp_beg_lev = hitp_max;
 				checkpoint = 0;
 
-				#ifdef USE_REPLAY
+				#if USE_REPLAY
 				if (keep_last_seed == -1) {
 					random_seed = preserved_seed; // Ensure reproducibility in the next level.
 					keep_last_seed = 0;
@@ -511,7 +511,7 @@ void __pascal far timers() {
 				}
 				//printf("slow fall ended at: rem_min = %d, rem_tick = %d\n", rem_min, rem_tick);
 				//printf("length = %d ticks\n", is_feather_fall);
-	#ifdef USE_REPLAY
+	#if USE_REPLAY
 				if (recording) special_move = MOVE_EFFECT_END;
 	#endif
 			}
@@ -522,7 +522,7 @@ void __pascal far timers() {
 		if (is_feather_fall && (!check_sound_playing() || is_feather_fall > 225)) {
 			//printf("slow fall ended at: rem_min = %d, rem_tick = %d\n", rem_min, rem_tick);
 			//printf("length = %d ticks\n", is_feather_fall);
-	#ifdef USE_REPLAY
+	#if USE_REPLAY
 			if (recording) special_move = MOVE_EFFECT_END;
 			if (!replaying) // during replays, feather effect gets cancelled in do_replay_move()
 	#endif

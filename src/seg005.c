@@ -320,7 +320,7 @@ void __pascal far control_crouched() {
 				play_sound(sound_25_presentation); // presentation (level 1 start)
 				need_level1_music = 2;
 			} else {
-#ifdef USE_REPLAY
+#if USE_REPLAY
 				if (recording) special_move = MOVE_EFFECT_END;
 				if (!replaying) // during replays, crouch immobilization gets cancelled in do_replay_move()
 #endif
@@ -611,7 +611,7 @@ void __pascal far get_item() {
 	} else { // potion
 		do_pickup(curr_room_modif[curr_tilepos] >> 3);
 		seqtbl_offset_char(seq_78_drink); // drink
-#ifdef USE_COPYPROT
+#if USE_COPYPROT
 		if (current_level == 15) {
 			short index;
 			for (index = 0; index < 14; ++index) {
